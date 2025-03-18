@@ -14,14 +14,16 @@ class Observer:
     def __init__(self, service_name, prometheus_gtw = None, pyroscope_server = None, otlp_server = None, prometheus_port = None):
         self.prometheus_gtw = prometheus_gtw
         self.pyroscope_server = pyroscope_server
-        self.otlp_server = otlp_server
 
         if otlp_server:
-            res = Resource(attributes = {
+            self.otlp_server = otlp_server + "/v1/traces"
+
+        if otlp_server:
+            resource = Resource(attributes = {
             SERVICE_NAME: service_name
             })
             tracerProvider = TracerProvider(resource=resource)
-            processor = BatchSpanProcessor(OTLPSpanExporter(endpoint = otlp_server))
+            processor = BatchSpanProcessor(OTLPSpanExporter(endpoint = self.otlp_server))
             tracerProvider.add_span_processor(processor)
             trace.set_tracer_provider(tracerProvider)
             self.tracer = trace.get_tracer(__name__)
@@ -37,3 +39,5 @@ class Observer:
     def push_metrics(self):
         push_to_gateway(self.prometheus_gtw, job = self.service_name, registry = self.registry)
 
+def get_trace_id(span):
+    return format_trace_id(span.get_span_context().trace_id)
