@@ -11,7 +11,7 @@ from opentelemetry.sdk.trace.export import (
 )
 
 class Observer:
-    def __init__(self, prometheus_gtw = None, pyroscope_server = None, otlp_server = None, prometheus_port = None, service_name)
+    def __init__(self, service_name, prometheus_gtw = None, pyroscope_server = None, otlp_server = None, prometheus_port = None):
         self.prometheus_gtw = prometheus_gtw
         self.pyroscope_server = pyroscope_server
         self.otlp_server = otlp_server
