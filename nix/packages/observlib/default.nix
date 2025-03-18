@@ -16,7 +16,7 @@ let
   # Load a uv workspace from a workspace root.
   # Uv2nix treats all uv projects as workspace projects.
   workspace = inputs.uv2nix.lib.workspace.loadWorkspace {
-    workspaceRoot = lib.snowfall.fs.get-file "/observlib";
+    workspaceRoot = lib.snowfall.fs.get-file "/lib";
   };
 
   # Create package overlay from workspace.
