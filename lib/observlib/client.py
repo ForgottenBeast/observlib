@@ -5,10 +5,10 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.span import format_trace_id
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-    ConsoleSpanExporter,
-)
+from opentelemetry.sdk.trace.export import BatchSpanProcessor,
+
+# global observer object
+OBSERVER = None
 
 class Observer:
     def __init__(self, service_name, prometheus_gtw = None, pyroscope_server = None, otlp_server = None, prometheus_port = None):
