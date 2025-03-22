@@ -18,7 +18,6 @@ class Observer:
         prometheus_gtw=None,
         pyroscope_server=None,
         otlp_server=None,
-        prometheus_port=None,
     ):
         self.prometheus_gtw = prometheus_gtw
         self.pyroscope_server = pyroscope_server
