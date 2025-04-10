@@ -1,5 +1,5 @@
 import pyroscope
-from prometheus_client import CollectorRegistry, push_to_gateway
+from prometheus_client import CollectorRegistry, push_to_gateway, Counter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry import trace
@@ -42,9 +42,14 @@ class Observer:
         self.service_name = service_name
 
     def push_metrics(self):
-        push_to_gateway(
+        pushed_counter = Counter('observlib_pushed_metrics', 'successful metrics push to gateway')
+        failed_counter = Counter('observlib_pushed_error_metrics', 'failed metrics push to gateway')
+        if push_to_gateway(
             self.prometheus_gtw, job=self.service_name, registry=self.registry
-        )
+            ):
+            pushed_counter.inc()
+        else:
+            failed_counter.inc()
 
 
 def get_trace_id(span):
