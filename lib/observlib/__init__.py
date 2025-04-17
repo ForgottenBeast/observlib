@@ -36,7 +36,7 @@ URLLibInstrumentor().instrument(
 AsyncioInstrumentor().instrument()
 
 # Creates a tracer from the global tracer provider
-tracer = None
+tracer = trace.get_tracer(__name__)
 
 
 # Creates a meter from the global meter provider
@@ -63,7 +63,6 @@ def get_trace():
 
 
 def configure_telemetry(service_name, server, pyroscope_server):
-    global tracer
     global meter
     pyroscope.configure(
         application_name=service_name,
@@ -78,7 +77,6 @@ def configure_telemetry(service_name, server, pyroscope_server):
     tracerProvider.add_span_processor(PyroscopeSpanProcessor())
     tracerProvider.add_span_processor(processor)
     trace.set_tracer_provider(tracerProvider)
-    tracer = trace.get_tracer(__name__)
 
     otlp_exporter = OTLPMetricExporter(endpoint="http://{}/v1/metrics".format(server))
     metric_reader = PeriodicExportingMetricReader(
