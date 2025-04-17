@@ -62,7 +62,7 @@ def get_trace():
     return trace
 
 
-def configure_telemetry(server, service_name, pyroscope_server):
+def configure_telemetry(service_name, server, pyroscope_server):
     global tracer
     global meter
     pyroscope.configure(
