@@ -14,7 +14,7 @@ from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace import TracerProvider, Status, StatusCode
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
 )
@@ -41,6 +41,11 @@ tracer = None
 
 # Creates a meter from the global meter provider
 meter = None
+
+def set_span_error_status():
+    current_span = trace.get_current_span()
+    current_span.set_status(Status(StatusCode.ERROR))
+
 
 
 def get_meter():
