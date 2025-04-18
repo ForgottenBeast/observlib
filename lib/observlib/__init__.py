@@ -42,10 +42,10 @@ tracer = trace.get_tracer(__name__)
 # Creates a meter from the global meter provider
 meter = None
 
+
 def set_span_error_status():
     current_span = trace.get_current_span()
     current_span.set_status(Status(StatusCode.ERROR))
-
 
 
 def get_meter():
@@ -56,6 +56,7 @@ def get_meter():
 def get_tracer():
     global tracer
     return tracer
+
 
 def get_trace():
     global trace
