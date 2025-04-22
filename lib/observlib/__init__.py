@@ -1,3 +1,4 @@
+from functools import wraps
 import logging
 from pyroscope.otel import PyroscopeSpanProcessor
 from opentelemetry import trace, metrics
