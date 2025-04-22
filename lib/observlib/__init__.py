@@ -42,6 +42,13 @@ tracer = trace.get_tracer(__name__)
 # Creates a meter from the global meter provider
 meter = None
 
+def traced(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with tracer.start_as_current_span(func.__name__):
+            return func(*args, **kwargs)
+    return wrapper
+
 
 def set_span_error_status():
     current_span = trace.get_current_span()
