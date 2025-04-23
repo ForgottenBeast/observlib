@@ -71,11 +71,17 @@ def get_trace():
     return trace
 
 
-def configure_telemetry(service_name, server, pyroscope_server):
+def configure_telemetry(service_name, server, pyroscope_server, devMode = False):
     global meter
+    if devMode:
+        sample_rate = 100
+    else:
+        sample_rate = 5
+
     pyroscope.configure(
         application_name=service_name,
         server_address="http://{}".format(pyroscope_server),
+        sample_rate = sample_rate
     )
 
     endpoint = "http://{}/v1/traces".format(server)
