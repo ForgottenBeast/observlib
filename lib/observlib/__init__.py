@@ -2,6 +2,7 @@ from functools import wraps
 import logging
 from pyroscope.otel import PyroscopeSpanProcessor
 from opentelemetry import trace, metrics
+from opentelemetry.trace import Link, SpanContext, TraceFlags, INVALID_SPAN_CONTEXT
 
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
@@ -50,6 +51,14 @@ def traced(func):
             return func(*args, **kwargs)
     return wrapper
 
+def span_from_context(span_name,trace_id, span_id):
+    parent_context = SpanContext(
+        trace_id=trace_id,
+        span_id=span_id,
+        is_remote=True,
+        trace_flags=TraceFlags(TraceFlags.SAMPLED)
+    )
+    return tracer.start_as_current_span(span_name, links = [Link(parent_context)])
 
 def set_span_error_status():
     current_span = trace.get_current_span()
