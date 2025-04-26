@@ -43,8 +43,7 @@ meter = None
 def traced(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with trace.get_tracer(__name__).start_as_current_span(func.__name__) as span:
-            print("observlib span: {}".format(span))
+        with trace.get_tracer().start_as_current_span(func.__name__):
             return func(*args, **kwargs)
     return wrapper
 
