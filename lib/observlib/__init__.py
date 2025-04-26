@@ -1,4 +1,5 @@
 from functools import wraps
+import asyncio
 import logging
 from pyroscope.otel import PyroscopeSpanProcessor
 from opentelemetry import trace, metrics
@@ -45,10 +46,19 @@ sname = None
 def traced(func):
     global sname
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def sync_wrapper(*args, **kwargs):
         with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
             return func(*args, **kwargs)
-    return wrapper
+
+    @wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
+            return await func(*args, **kwargs)
+
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper
 
 def span_from_context(span_name,trace_id, span_id):
     parent_context = SpanContext(
