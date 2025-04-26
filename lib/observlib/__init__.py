@@ -37,16 +37,13 @@ URLLibInstrumentor().instrument(
 )
 AsyncioInstrumentor().instrument()
 
-# Creates a tracer from the global tracer provider
-tracer = None
-
 # Creates a meter from the global meter provider
 meter = None
 
 def traced(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with tracer.start_as_current_span(func.__name__):
+        with trace.get_tracer(__name__).start_as_current_span(func.__name__):
             return func(*args, **kwargs)
     return wrapper
 
@@ -70,18 +67,15 @@ def get_meter():
 
 
 def get_tracer():
-    global tracer
-    return tracer
+    return trace.get_tracer(__name__)
 
 
 def get_trace():
     global trace
     return trace
 
-
 def configure_telemetry(service_name, server, pyroscope_server, devMode = False):
     global meter
-    global tracer
     if devMode:
         sample_rate = 100
     else:
@@ -96,7 +90,6 @@ def configure_telemetry(service_name, server, pyroscope_server, devMode = False)
     endpoint = "http://{}/v1/traces".format(server)
     resource = Resource.create(attributes={"service.name": service_name})
 
-    tracer = trace.get_tracer(__name__)
 
     tracerProvider = TracerProvider(resource=resource)
     processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
