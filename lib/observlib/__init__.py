@@ -40,10 +40,13 @@ AsyncioInstrumentor().instrument()
 # Creates a meter from the global meter provider
 meter = None
 
+sname = None
+
 def traced(func):
+    global sname
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with trace.get_tracer().start_as_current_span(func.__name__) as span:
+        with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
             return func(*args, **kwargs)
     return wrapper
 
@@ -75,6 +78,8 @@ def get_trace():
     return trace
 
 def configure_telemetry(service_name, server, pyroscope_server, devMode = False):
+    global sname
+    sname = service_name
     global meter
     if devMode:
         sample_rate = 100
