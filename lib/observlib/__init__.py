@@ -40,12 +40,15 @@ AsyncioInstrumentor().instrument()
 # Creates a meter from the global meter provider
 meter = None
 
-def traced(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        with trace.get_tracer().start_as_current_span(func.__name__):
-            return func(*args, **kwargs)
-    return wrapper
+def traced(span_name: str = None):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            name = span_name or func.__name__
+            with trace.get_tracer().start_as_current_span(name):
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 def span_from_context(span_name,trace_id, span_id):
     parent_context = SpanContext(
