@@ -45,7 +45,7 @@ def traced(span_name: str = None):
         @wraps(func)
         def wrapper(*args, **kwargs):
             name = span_name or func.__name__
-            with trace.get_tracer().start_as_current_span(name):
+            with trace.get_tracer().start_as_current_span(name) as span:
                 return func(*args, **kwargs)
         return wrapper
     return decorator
