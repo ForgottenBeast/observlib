@@ -1,3 +1,4 @@
+import time
 from functools import wraps
 import asyncio
 import logging
@@ -38,22 +39,33 @@ URLLibInstrumentor().instrument(
 )
 AsyncioInstrumentor().instrument()
 
+sname = None
+
+exec_time_histogram = None
+
+
 # Creates a meter from the global meter provider
 meter = None
-
-sname = None
 
 def traced(func):
     global sname
     @wraps(func)
     def sync_wrapper(*args, **kwargs):
         with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
-            return func(*args, **kwargs)
+            start = time.perf_counter()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                exec_time_histogram.record(time.perf_counter() - start, {"function": func.__name__})
 
     @wraps(func)
     async def async_wrapper(*args, **kwargs):
         with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
-            return await func(*args, **kwargs)
+            start = time.perf_counter()
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                exec_time_histogram.record(time.perf_counter() - start, {"function": func.__name__})
 
     if asyncio.iscoroutinefunction(func):
         return async_wrapper
@@ -91,6 +103,7 @@ def configure_telemetry(service_name, server, pyroscope_server, devMode = False)
     global sname
     sname = service_name
     global meter
+    global exec_time_histogram
     if devMode:
         sample_rate = 100
     else:
@@ -127,6 +140,11 @@ def configure_telemetry(service_name, server, pyroscope_server, devMode = False)
     metrics.set_meter_provider(provider)
 
     meter = metrics.get_meter(service_name)
+    exec_time_histogram = meter.create_histogram(
+        name="function_exec_time_seconds",
+        description="Execution time of wrapped functions",
+        unit="s"
+    )
 
     otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
 
