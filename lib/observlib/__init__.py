@@ -43,6 +43,10 @@ sname = None
 
 exec_time_histogram = None
 
+def get_exec_time_histogram():
+    global exec_time_histogram
+    return exec_time_histogram
+
 
 # Creates a meter from the global meter provider
 meter = None
@@ -56,7 +60,7 @@ def traced(func):
             try:
                 return func(*args, **kwargs)
             finally:
-                exec_time_histogram.record(time.perf_counter() - start, {"function": func.__name__})
+                get_exec_time_histogram().record(time.perf_counter() - start, {"function": func.__name__})
 
     @wraps(func)
     async def async_wrapper(*args, **kwargs):
@@ -65,7 +69,7 @@ def traced(func):
             try:
                 return await func(*args, **kwargs)
             finally:
-                exec_time_histogram.record(time.perf_counter() - start, {"function": func.__name__})
+                get_exec_time_histogram().record(time.perf_counter() - start, {"function": func.__name__})
 
     if asyncio.iscoroutinefunction(func):
         return async_wrapper
