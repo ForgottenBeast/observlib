@@ -42,6 +42,6 @@ def configure_telemetry(
             log_level = logging.DEBUG
         else:
             log_level = logging.INFO
-        configure_logging(server, resource, log_level, service_name)
+        configure_logging(server, resource, service_name, log_level)
 
     configure_metrics(legacy_prometheus_config, server, service_name, resource)
