@@ -36,7 +36,7 @@ def configure_telemetry(
     resource = Resource.create(attributes={"service.name": service_name})
 
     if server:
-        configure_tracing(server, resource, service_name)
+        configure_tracing(server, resource)
 
         if devMode:
             log_level = logging.DEBUG
