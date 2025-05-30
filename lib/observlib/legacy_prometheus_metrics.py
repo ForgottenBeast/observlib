@@ -1,22 +1,18 @@
 import threading
-from flask import Flask
 from prometheus_client import make_wsgi_app
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from werkzeug.serving import run_simple
-
+from fastapi import FastAPI
+import uvicorn
 
 
 def start_server(parameters):
     [host, port] = parameters.split(":")
 
-    flask_app = Flask(__name__)
+    app = FastAPI()
+    app.mount("/metrics", make_asgi_app())
 
-    application = DispatcherMiddleware(flask_app, {
-        "/metrics": make_wsgi_app()
-    })
 
     def run():
-       run_simple(hostname=host, port=int(port), application=application, use_reloader=False)
+       uvicorn.run(app, host=host, port=int(port), log_level="info", access_log=False)
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
