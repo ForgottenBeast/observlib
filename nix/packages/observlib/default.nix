@@ -42,7 +42,7 @@ let
   };
 
   # Use Python 3.12 from nixpkgs
-  python = pkgs.python312;
+  python = pkgs.python313;
 
   # Construct package set
   pythonSet =

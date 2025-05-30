@@ -17,7 +17,12 @@ mkShell {
   packages = with pkgs; [
     python3Packages.bandit
     deadnix
-    python312
+    python313
+  (python313Packages.opentelemetry-instrumentation.overrideAttrs (old:
+    {
+        propagatedBuildInputs = old.propagatedBuildInputs ++ [ pkgs.python313Packages.packaging ];
+    }))# for bootstrap
+
     ruff
     statix
     uv
@@ -42,7 +47,7 @@ mkShell {
       # Prevent uv from managing Python downloads
       UV_PYTHON_DOWNLOADS = "never";
       # Force uv to use nixpkgs Python interpreter
-      UV_PYTHON = pkgs.python312;
+      UV_PYTHON = pkgs.python313;
     }
     // lib.optionalAttrs pkgs.stdenv.isLinux {
       # Python libraries often load native shared objects using dlopen(3).
