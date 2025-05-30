@@ -36,12 +36,12 @@ def configure_telemetry(
     resource = Resource.create(attributes={"service.name": service_name})
 
     if server:
-        configure_tracing(server, resource)
+        configure_tracing(server, resource, service_name)
 
         if devMode:
             log_level = logging.DEBUG
         else:
             log_level = logging.INFO
-        configure_logging(server, resource, log_level)
+        configure_logging(server, resource, log_level, service_name)
 
     configure_metrics(legacy_prometheus_config, server, service_name, resource)
