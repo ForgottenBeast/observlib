@@ -7,7 +7,7 @@ from .span_utils import (
     set_span_error_status as set_span_error_status,
 )
 
-from .traces import configure_tracing
+from .traces import configure_tracing, get_trace as get_trace
 from .logs import configure_logging
 from .metrics import configure_metrics
 

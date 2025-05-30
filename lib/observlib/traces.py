@@ -7,10 +7,6 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from .metrics import set_metric_reader
 
 
-def get_tracer():
-    return trace.get_tracer(__name__)
-
-
 def get_trace():
     global trace
     return trace
