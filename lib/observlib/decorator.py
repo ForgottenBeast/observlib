@@ -14,7 +14,7 @@ def set_exec_time_histogram(histogram):
 
 def set_sname(name):
     global sname
-    sname = sname
+    sname = name
 
 
 def traced(func):
