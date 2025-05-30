@@ -117,7 +117,7 @@ def configure_telemetry(
     server=None,
     pyroscope_server=None,
     devMode=False,
-    legacy_prometheus_config = "127.0.0.1:0"
+    legacy_prometheus_config="127.0.0.1:0",
 ):
     legacy_prometheus_port = int(legacy_prometheus_config.split(":")[1])
     global sname
@@ -200,4 +200,4 @@ def configure_telemetry(
         logging.getLogger().setLevel(logging.DEBUG)
 
     if legacy_prometheus_port != 0:
-            start_server(legacy_prometheus_config)
+        start_server(legacy_prometheus_config)

@@ -10,9 +10,8 @@ def start_server(parameters):
     app = FastAPI()
     app.mount("/metrics", make_asgi_app())
 
-
     def run():
-       uvicorn.run(app, host=host, port=int(port), log_level="info", access_log=False)
+        uvicorn.run(app, host=host, port=int(port), log_level="info", access_log=False)
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
