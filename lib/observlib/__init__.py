@@ -4,11 +4,12 @@ import asyncio
 import logging
 from pyroscope.otel import PyroscopeSpanProcessor
 from opentelemetry import trace, metrics
-from opentelemetry.trace import Link, SpanContext, TraceFlags, INVALID_SPAN_CONTEXT
+from opentelemetry.trace import Link, SpanContext, TraceFlags
 
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
 
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
 from opentelemetry.instrumentation.urllib import URLLibInstrumentor
@@ -47,39 +48,49 @@ exec_time_histogram = None
 # Creates a meter from the global meter provider
 meter = None
 
+
 def traced(func):
     global sname
+
     @wraps(func)
     def sync_wrapper(*args, **kwargs):
-        with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
+        with trace.get_tracer(sname).start_as_current_span(func.__name__):
             start = time.perf_counter()
             try:
                 return func(*args, **kwargs)
             finally:
-                exec_time_histogram.record(time.perf_counter() - start, {"function": func.__name__})
+                exec_time_histogram.record(
+                    time.perf_counter() - start, {"function": func.__name__}
+                )
 
     @wraps(func)
     async def async_wrapper(*args, **kwargs):
-        with trace.get_tracer(sname).start_as_current_span(func.__name__) as span:
+        with trace.get_tracer(sname).start_as_current_span(func.__name__):
             start = time.perf_counter()
             try:
                 return await func(*args, **kwargs)
             finally:
-                exec_time_histogram.record(time.perf_counter() - start, {"function": func.__name__})
+                exec_time_histogram.record(
+                    time.perf_counter() - start, {"function": func.__name__}
+                )
 
     if asyncio.iscoroutinefunction(func):
         return async_wrapper
     else:
         return sync_wrapper
 
-def span_from_context(span_name,trace_id, span_id):
+
+def span_from_context(span_name, trace_id, span_id):
     parent_context = SpanContext(
         trace_id=trace_id,
         span_id=span_id,
         is_remote=True,
-        trace_flags=TraceFlags(TraceFlags.SAMPLED)
+        trace_flags=TraceFlags(TraceFlags.SAMPLED),
     )
-    return tracer.start_as_current_span(span_name, links = [Link(parent_context)])
+    return trace.get_tracer().start_as_current_span(
+        span_name, links=[Link(parent_context)]
+    )
+
 
 def set_span_error_status():
     current_span = trace.get_current_span()
@@ -99,7 +110,14 @@ def get_trace():
     global trace
     return trace
 
-def configure_telemetry(service_name, server = None, pyroscope_server = None, devMode = False, legacy_prometheus_port = 0):
+
+def configure_telemetry(
+    service_name,
+    server=None,
+    pyroscope_server=None,
+    devMode=False,
+    legacy_prometheus_port=0,
+):
     global sname
     sname = service_name
     global meter
@@ -113,7 +131,7 @@ def configure_telemetry(service_name, server = None, pyroscope_server = None, de
         pyroscope.configure(
             application_name=service_name,
             server_address="http://{}".format(pyroscope_server),
-            sample_rate = sample_rate
+            sample_rate=sample_rate,
         )
 
     metric_reader = None
@@ -122,14 +140,15 @@ def configure_telemetry(service_name, server = None, pyroscope_server = None, de
     if server:
         endpoint = "http://{}/v1/traces".format(server)
 
-
         tracerProvider = TracerProvider(resource=resource)
         processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
         tracerProvider.add_span_processor(PyroscopeSpanProcessor())
         tracerProvider.add_span_processor(processor)
         trace.set_tracer_provider(tracerProvider)
 
-        otlp_exporter = OTLPMetricExporter(endpoint="http://{}/v1/metrics".format(server))
+        otlp_exporter = OTLPMetricExporter(
+            endpoint="http://{}/v1/metrics".format(server)
+        )
         metric_reader = PeriodicExportingMetricReader(
             otlp_exporter, export_interval_millis=5000
         )
@@ -137,18 +156,18 @@ def configure_telemetry(service_name, server = None, pyroscope_server = None, de
     if legacy_prometheus_port == 0 and metric_reader:
         metrics_readers = [metric_reader]
     elif legacy_prometheus_port != 0:
-        metrics_reader = [
-                PrometheusMetricReader(),
-                ]
+        metrics_readers = [
+            PrometheusMetricReader(),
+        ]
     else:
-        metrics_reader = [
-                metric_reader,
-                PrometheusMetricReader(),
-                ]
+        metrics_readers = [
+            metric_reader,
+            PrometheusMetricReader(),
+        ]
 
     if legacy_prometheus_port != 0 or server:
         provider = MeterProvider(
-            metric_readers=metrics_reader,
+            metric_readers=metrics_readers,
             exemplar_filter=AlwaysOnExemplarFilter(),
             resource=resource,
         )
@@ -160,7 +179,7 @@ def configure_telemetry(service_name, server = None, pyroscope_server = None, de
         exec_time_histogram = meter.create_histogram(
             name="function_exec_time_seconds",
             description="Execution time of wrapped functions",
-            unit="s"
+            unit="s",
         )
 
     if server:
@@ -168,7 +187,9 @@ def configure_telemetry(service_name, server = None, pyroscope_server = None, de
 
         # Set up the logger provider with a batch log processor
         logger_provider = LoggerProvider(resource=resource)
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(otlp_log_exporter)
+        )
         set_logger_provider(logger_provider)
 
         # Set up Python logging integration
