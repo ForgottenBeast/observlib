@@ -46,14 +46,14 @@ def configure_metrics(legacy_prometheus_config, server, service_name, resource):
         # Sets the global default meter provider
         metrics.set_meter_provider(provider)
 
-        meter = metrics.get_meter(service_name)
-        set_exec_time_histogram(
-            meter.create_histogram(
-                name="function_exec_time_seconds",
-                description="Execution time of wrapped functions",
-                unit="s",
-            )
+    meter = metrics.get_meter(service_name)
+    set_exec_time_histogram(
+        meter.create_histogram(
+            name="function_exec_time_seconds",
+            description="Execution time of wrapped functions",
+            unit="s",
         )
+    )
 
     if legacy_prometheus_port != 0:
         start_server(legacy_prometheus_config)
