@@ -5,6 +5,7 @@ from pyroscope.otel import PyroscopeSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from .metrics import set_metric_reader
+from opentelemetry import trace
 
 
 def get_trace():
