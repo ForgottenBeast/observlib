@@ -15,5 +15,6 @@ def configure_logging(server, resource, log_level=logging.INFO):
 
     # Set up Python logging integration
     handler = LoggingHandler(level=log_level, logger_provider=logger_provider)
-    logger = logging.getLogger().addHandler(handler)
+    logger = logging.getLogger()
+    logger.addHandler(handler)
     logger.setLevel(log_level)
