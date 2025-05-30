@@ -1,3 +1,4 @@
+from .legacy_prometheus_metrics import start_server
 import time
 from functools import wraps
 import asyncio
@@ -116,8 +117,9 @@ def configure_telemetry(
     server=None,
     pyroscope_server=None,
     devMode=False,
-    legacy_prometheus_port=0,
+    legacy_prometheus_config = "127.0.0.1:0"
 ):
+    legacy_prometheus_port = int(legacy_prometheus_config.split(":")[1])
     global sname
     sname = service_name
     global meter
@@ -196,3 +198,6 @@ def configure_telemetry(
         handler = LoggingHandler(level=logging.DEBUG, logger_provider=logger_provider)
         logging.getLogger().addHandler(handler)
         logging.getLogger().setLevel(logging.DEBUG)
+
+    if legacy_prometheus_port != 0:
+            start_server(legacy_prometheus_config)
