@@ -1,5 +1,5 @@
 import threading
-from prometheus_client import make_wsgi_app
+from prometheus_client import make_asgi_app
 from fastapi import FastAPI
 import uvicorn
 
