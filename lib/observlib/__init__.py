@@ -1,3 +1,4 @@
+import logging
 from opentelemetry.sdk.resources import Resource
 
 import pyroscope
@@ -36,6 +37,11 @@ def configure_telemetry(
 
     if server:
         configure_tracing(server, resource)
-        configure_logging(server, resource)
+
+        if devMode:
+            log_level = logging.DEBUG
+        else:
+            log_level = logging.INFO
+        configure_logging(server, resource, log_level)
 
     configure_metrics(legacy_prometheus_config, server, service_name, resource)
