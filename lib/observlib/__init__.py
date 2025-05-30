@@ -9,7 +9,7 @@ from .span_utils import (
 
 from .traces import configure_tracing, get_trace as get_trace
 from .logs import configure_logging
-from .metrics import configure_metrics
+from .metrics import configure_metrics, get_meter as get_meter
 
 
 def configure_telemetry(
