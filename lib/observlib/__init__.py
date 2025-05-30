@@ -4,6 +4,7 @@ from opentelemetry.sdk.resources import Resource
 import pyroscope
 from .decorator import set_sname, traced as traced
 from .span_utils import (
+    set_sname as set_span_sname
     span_from_context as span_from_context,
     set_span_error_status as set_span_error_status,
 )
@@ -21,6 +22,7 @@ def configure_telemetry(
     legacy_prometheus_config="127.0.0.1:0",
 ):
     set_sname(service_name)
+    set_span_sname(service_name)
     if devMode:
         sample_rate = 100
     else:
