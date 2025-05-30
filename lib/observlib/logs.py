@@ -1,0 +1,19 @@
+import logging
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry._logs import set_logger_provider
+
+
+def configure_logging(server, resource):
+    otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
+
+    # Set up the logger provider with a batch log processor
+    logger_provider = LoggerProvider(resource=resource)
+    logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+    set_logger_provider(logger_provider)
+
+    # Set up Python logging integration
+    handler = LoggingHandler(level=logging.DEBUG, logger_provider=logger_provider)
+    logging.getLogger().addHandler(handler)
+    logging.getLogger().setLevel(logging.DEBUG)
