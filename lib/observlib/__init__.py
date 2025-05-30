@@ -1,3 +1,4 @@
+import .autoinstrumentation
 from .legacy_prometheus_metrics import start_server
 import time
 from functools import wraps
@@ -12,8 +13,6 @@ from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExp
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 
-from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
-from opentelemetry.instrumentation.urllib import URLLibInstrumentor
 
 from opentelemetry._logs import set_logger_provider
 
@@ -35,11 +34,6 @@ def strip_query_params(url: str) -> str:
     return url.split("?")[0]
 
 
-URLLibInstrumentor().instrument(
-    # Remove all query params from the URL attribute on the span.
-    url_filter=strip_query_params,
-)
-AsyncioInstrumentor().instrument()
 
 sname = None
 
