@@ -1,3 +1,4 @@
+from .prometheus_exporter import PrometheusClientExporter
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics import AlwaysOnExemplarFilter
@@ -5,35 +6,37 @@ from opentelemetry import metrics
 from .legacy_prometheus_metrics import start_server
 from observlib.decorator import set_exec_time_histogram
 
-meter = None
-metric_reader = None
 
+sname = None
+
+def set_sname(name):
+    global sname
+    sname = name
 
 def get_meter():
-    global meter
-    return meter
+    return metrics.get_meter(service_name)
 
 
-def set_metric_reader(reader):
-    global metric_reader
-    metric_reader = reader
-
-
-def configure_metrics(legacy_prometheus_config, server, service_name, resource):
+def configure_metrics(legacy_prometheus_config, server, service_name, resource, prometheus_registry = None):
     global metric_reader
     global meter
     legacy_prometheus_port = int(legacy_prometheus_config.split(":")[1])
 
     if legacy_prometheus_port == 0 and metric_reader:
-        metrics_readers = [metric_reader]
+        metrics_readers = [
+            metric_reader
+            PrometheusClientExporter(prometheus_registry),
+        ]
     elif legacy_prometheus_port != 0:
         metrics_readers = [
             PrometheusMetricReader(),
+            PrometheusClientExporter(prometheus_registry),
         ]
     else:
         metrics_readers = [
             metric_reader,
             PrometheusMetricReader(),
+            PrometheusClientExporter(prometheus_registry),
         ]
 
     if legacy_prometheus_port != 0 or server:
