@@ -99,7 +99,7 @@ def get_trace():
     global trace
     return trace
 
-def configure_telemetry(service_name, server, pyroscope_server, devMode = False):
+def configure_telemetry(service_name, server = None, pyroscope_server = None, devMode = False, legacy_prometheus_port = 0):
     global sname
     sname = service_name
     global meter
@@ -109,51 +109,69 @@ def configure_telemetry(service_name, server, pyroscope_server, devMode = False)
     else:
         sample_rate = 5
 
-    pyroscope.configure(
-        application_name=service_name,
-        server_address="http://{}".format(pyroscope_server),
-        sample_rate = sample_rate
-    )
+    if pyroscope_server:
+        pyroscope.configure(
+            application_name=service_name,
+            server_address="http://{}".format(pyroscope_server),
+            sample_rate = sample_rate
+        )
 
-    endpoint = "http://{}/v1/traces".format(server)
+    metric_reader = None
     resource = Resource.create(attributes={"service.name": service_name})
 
+    if server:
+        endpoint = "http://{}/v1/traces".format(server)
 
-    tracerProvider = TracerProvider(resource=resource)
-    processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-    tracerProvider.add_span_processor(PyroscopeSpanProcessor())
-    tracerProvider.add_span_processor(processor)
-    trace.set_tracer_provider(tracerProvider)
 
-    otlp_exporter = OTLPMetricExporter(endpoint="http://{}/v1/metrics".format(server))
-    metric_reader = PeriodicExportingMetricReader(
-        otlp_exporter, export_interval_millis=5000
-    )
+        tracerProvider = TracerProvider(resource=resource)
+        processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+        tracerProvider.add_span_processor(PyroscopeSpanProcessor())
+        tracerProvider.add_span_processor(processor)
+        trace.set_tracer_provider(tracerProvider)
 
-    provider = MeterProvider(
-        metric_readers=[metric_reader],
-        exemplar_filter=AlwaysOnExemplarFilter(),
-        resource=resource,
-    )
+        otlp_exporter = OTLPMetricExporter(endpoint="http://{}/v1/metrics".format(server))
+        metric_reader = PeriodicExportingMetricReader(
+            otlp_exporter, export_interval_millis=5000
+        )
 
-    # Sets the global default meter provider
-    metrics.set_meter_provider(provider)
+    if legacy_prometheus_port == 0 and metric_reader:
+        metrics_readers = [metric_reader]
+    elif legacy_prometheus_port != 0:
+        metrics_reader = [
+                PrometheusMetricReader(),
+                ]
+    else:
+        metrics_reader = [
+                metric_reader,
+                PrometheusMetricReader(),
+                ]
 
-    meter = metrics.get_meter(service_name)
-    exec_time_histogram = meter.create_histogram(
-        name="function_exec_time_seconds",
-        description="Execution time of wrapped functions",
-        unit="s"
-    )
+    if legacy_prometheus_port != 0 or server:
+        provider = MeterProvider(
+            metric_readers=metrics_reader,
+            exemplar_filter=AlwaysOnExemplarFilter(),
+            resource=resource,
+        )
 
-    otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
+        # Sets the global default meter provider
+        metrics.set_meter_provider(provider)
 
-    # Set up the logger provider with a batch log processor
-    logger_provider = LoggerProvider(resource=resource)
-    logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
-    set_logger_provider(logger_provider)
+        meter = metrics.get_meter(service_name)
+        exec_time_histogram = meter.create_histogram(
+            name="function_exec_time_seconds",
+            description="Execution time of wrapped functions",
+            unit="s"
+        )
 
-    # Set up Python logging integration
-    handler = LoggingHandler(level=logging.DEBUG, logger_provider=logger_provider)
-    logging.getLogger().addHandler(handler)
-    logging.getLogger().setLevel(logging.DEBUG)
+    if server:
+        otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
+
+        # Set up the logger provider with a batch log processor
+        logger_provider = LoggerProvider(resource=resource)
+        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+        set_logger_provider(logger_provider)
+
+        # Set up Python logging integration
+        handler = LoggingHandler(level=logging.DEBUG, logger_provider=logger_provider)
+        logging.getLogger().addHandler(handler)
+        logging.getLogger().setLevel(logging.DEBUG)
