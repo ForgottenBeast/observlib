@@ -7,7 +7,7 @@ from werkzeug.serving import run_simple
 
 
 def start_server(parameters):
-    [hostname, port] = parameters.split(":")
+    [host, port] = parameters.split(":")
 
     flask_app = Flask(__name__)
 
