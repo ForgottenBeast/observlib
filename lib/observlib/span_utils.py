@@ -3,9 +3,12 @@ from opentelemetry.sdk.trace import Status, StatusCode
 from opentelemetry import trace
 
 sname = None
+
+
 def set_sname(name):
     global sname
     sname = sname
+
 
 def span_from_context(span_name, trace_id, span_id):
     global sname

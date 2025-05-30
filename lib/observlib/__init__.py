@@ -4,7 +4,7 @@ from opentelemetry.sdk.resources import Resource
 import pyroscope
 from .decorator import set_sname, traced as traced
 from .span_utils import (
-    set_sname as set_span_sname
+    set_sname as set_span_sname,
     span_from_context as span_from_context,
     set_span_error_status as set_span_error_status,
 )
