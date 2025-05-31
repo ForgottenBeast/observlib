@@ -16,7 +16,6 @@ let
   common = import ./../../uv_setup.nix {
     inherit inputs lib pkgs;
     package_name = "observlib";
-    #path_prefix = "/server/";
   };
 in
 common.pythonSet.mkVirtualEnv common.package_name common.workspace.deps.default
