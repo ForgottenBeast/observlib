@@ -2,16 +2,22 @@ import logging
 from opentelemetry.sdk.resources import Resource
 
 import pyroscope
-from .decorator import set_sname, traced as traced
+from .decorator import traced as traced
 from .span_utils import (
-    set_sname as set_span_sname,
     span_from_context as span_from_context,
     set_span_error_status as set_span_error_status,
 )
 
 from .traces import configure_tracing, get_trace as get_trace
 from .logs import configure_logging
-from .metrics import configure_metrics, get_meter as get_meter, set_sname as set_metrics_sname
+from .metrics import configure_metrics
+from .metrics.counter import (
+    create_counter as create_counter,
+    create_gauge as create_gauge,
+    create_histogram as create_histogram,
+)
+
+sname = None
 
 
 def configure_telemetry(
@@ -20,11 +26,10 @@ def configure_telemetry(
     pyroscope_server=None,
     devMode=False,
     legacy_prometheus_config="127.0.0.1:0",
-    prometheus_registy = None,
+    prometheus_registry=None,
 ):
-    set_sname(service_name)
-    set_span_sname(service_name)
-    set_metrics_sname(service_name)
+    global sname
+    sname = service_name
     if devMode:
         sample_rate = 100
     else:
@@ -48,4 +53,6 @@ def configure_telemetry(
             log_level = logging.INFO
         configure_logging(server, resource, service_name, log_level)
 
-    configure_metrics(legacy_prometheus_config, server, service_name, resource, prometheus_registry)
+    configure_metrics(
+        legacy_prometheus_config, server, service_name, resource, prometheus_registry
+    )

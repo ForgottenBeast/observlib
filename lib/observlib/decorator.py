@@ -2,8 +2,8 @@ from functools import wraps
 from opentelemetry import trace
 import time
 import asyncio
+from observlib import sname
 
-sname = None
 exec_time_histogram = None
 
 
@@ -12,35 +12,69 @@ def set_exec_time_histogram(histogram):
     exec_time_histogram = histogram
 
 
-def set_sname(name):
-    global sname
-    sname = name
-
-
-def traced(func):
-    global sname
+def traced(
+    func,
+    timed=False,
+    success_counter=None,
+    failure_counter=None,
+    label_fn=None,
+    parent_ctx=None,
+):
+    def resolve(maybe_callable):
+        return maybe_callable() if callable(maybe_callable) else maybe_callable
 
     @wraps(func)
     def sync_wrapper(*args, **kwargs):
-        with trace.get_tracer(sname).start_as_current_span(func.__name__):
-            start = time.perf_counter()
+        parent_ctx = kwargs.pop("parent_context", None)
+        start = time.perf_counter()
+        with trace.get_tracer(sname).start_as_current_span(
+            func.__name__, context=parent_ctx
+        ):
+            result = None
+            error = None
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                return result
+            except Exception as ex:
+                error = ex
+                raise
+
             finally:
-                exec_time_histogram.record(
-                    time.perf_counter() - start, {"function": func.__name__}
-                )
+                if timed:
+                    exec_time_histogram.record(
+                        time.perf_counter() - start, {"function": func.__name__}
+                    )
+
+                labels = label_fn(result=result, exception=error) if label_fn else {}
+                counter = resolve(failure_counter if error else success_counter)
+                counter.labels(**labels).inc()
 
     @wraps(func)
     async def async_wrapper(*args, **kwargs):
-        with trace.get_tracer(sname).start_as_current_span(func.__name__):
-            start = time.perf_counter()
+        parent_ctx = kwargs.pop("parent_context", None)
+        start = time.perf_counter()
+        with trace.get_tracer(sname).start_as_current_span(
+            func.__name__, context=parent_ctx
+        ):
+            result = None
+            error = None
             try:
-                return await func(*args, **kwargs)
+                result = await func(*args, **kwargs)
+                return result
+
+            except Exception as ex:
+                error = ex
+                raise
+
             finally:
-                exec_time_histogram.record(
-                    time.perf_counter() - start, {"function": func.__name__}
-                )
+                if timed:
+                    exec_time_histogram.record(
+                        time.perf_counter() - start, {"function": func.__name__}
+                    )
+
+                labels = label_fn(result=result, exception=error) if label_fn else {}
+                counter = resolve(failure_counter if error else success_counter)
+                counter.labels(**labels).inc()
 
     if asyncio.iscoroutinefunction(func):
         return async_wrapper

@@ -1,6 +1,6 @@
 from opentelemetry.sdk.metrics.export import MetricExporter, AggregationTemporality
 from prometheus_client import CollectorRegistry, Gauge, Counter
-from collections import defaultdict
+
 
 class PrometheusClientExporter(MetricExporter):
     def __init__(self, registry=None):
@@ -16,12 +16,16 @@ class PrometheusClientExporter(MetricExporter):
             # Choose type based on OTLP instrument
             if record.instrument.type.name == "COUNTER":
                 if name not in self.metrics_map:
-                    self.metrics_map[name] = Counter(name, description, labels.keys(), registry=self.registry)
+                    self.metrics_map[name] = Counter(
+                        name, description, labels.keys(), registry=self.registry
+                    )
                 self.metrics_map[name].labels(**labels).inc(record.point.value)
 
             elif record.instrument.type.name == "OBSERVABLE_GAUGE":
                 if name not in self.metrics_map:
-                    self.metrics_map[name] = Gauge(name, description, labels.keys(), registry=self.registry)
+                    self.metrics_map[name] = Gauge(
+                        name, description, labels.keys(), registry=self.registry
+                    )
                 self.metrics_map[name].labels(**labels).set(record.point.value)
 
         return self._success_result()

@@ -2,29 +2,38 @@ from .prometheus_exporter import PrometheusClientExporter
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics import AlwaysOnExemplarFilter
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry import metrics
 from .legacy_prometheus_metrics import start_server
 from observlib.decorator import set_exec_time_histogram
+from prometheus_client import REGISTRY, CollectorRegistry
+
+_fallback_registry: CollectorRegistry = REGISTRY
+_service_name: str = "default"
+_prometheus_metrics = []  # keep references alive to prevent GC
 
 
-sname = None
-
-def set_sname(name):
-    global sname
-    sname = name
-
-def get_meter():
-    return metrics.get_meter(service_name)
+def get_prometheus_client_exporter(registry=None):
+    registry = registry or REGISTRY
+    exporter = PrometheusClientExporter(registry=registry)
+    return PeriodicExportingMetricReader(exporter)
 
 
-def configure_metrics(legacy_prometheus_config, server, service_name, resource, prometheus_registry = None):
+def otel_configured():
+    provider = metrics.get_meter_provider()
+    return isinstance(provider, MeterProvider)
+
+
+def configure_metrics(
+    legacy_prometheus_config, server, service_name, resource, prometheus_registry=None
+):
     global metric_reader
     global meter
     legacy_prometheus_port = int(legacy_prometheus_config.split(":")[1])
 
     if legacy_prometheus_port == 0 and metric_reader:
         metrics_readers = [
-            metric_reader
+            metric_reader,
             PrometheusClientExporter(prometheus_registry),
         ]
     elif legacy_prometheus_port != 0:
