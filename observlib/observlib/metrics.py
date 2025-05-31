@@ -8,10 +8,9 @@ from observlib.decorator import set_exec_time_histogram
 from observlib.globals import get_sname
 
 
-def configure_metrics(server, resource, configure_provider = False):
+def configure_metrics(server, resource, configure_provider=False):
     service_name = get_sname()
     if configure_provider:
-
         # always make metrics available to someone running a prometheus server
         metric_readers = [PrometheusMetricReader(service_name)]
 
@@ -21,7 +20,9 @@ def configure_metrics(server, resource, configure_provider = False):
                 endpoint="http://{}/v1/metrics".format(server)
             )
             metric_readers.append(
-                PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
+                PeriodicExportingMetricReader(
+                    otlp_exporter, export_interval_millis=5000
+                )
             )
 
         provider = MeterProvider(

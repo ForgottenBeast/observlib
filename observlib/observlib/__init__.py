@@ -19,7 +19,7 @@ def configure_telemetry(
     server=None,
     pyroscope_server=None,
     devMode=False,
-    configure_provider = False,
+    configure_provider=False,
 ):
     set_sname(service_name)
     if devMode:
