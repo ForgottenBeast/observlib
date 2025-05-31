@@ -18,10 +18,9 @@ mkShell {
     python3Packages.bandit
     deadnix
     python313
-  (python313Packages.opentelemetry-instrumentation.overrideAttrs (old:
-    {
-        propagatedBuildInputs = old.propagatedBuildInputs ++ [ pkgs.python313Packages.packaging ];
-    }))# for bootstrap
+    (python313Packages.opentelemetry-instrumentation.overrideAttrs (old: {
+      propagatedBuildInputs = old.propagatedBuildInputs ++ [ pkgs.python313Packages.packaging ];
+    })) # for bootstrap
 
     ruff
     statix
