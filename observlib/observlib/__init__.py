@@ -19,6 +19,7 @@ def configure_telemetry(
     server=None,
     pyroscope_server=None,
     devMode=False,
+    configure_provider = False,
 ):
     set_sname(service_name)
     if devMode:
@@ -36,12 +37,13 @@ def configure_telemetry(
     resource = Resource.create(attributes={"service.name": service_name})
 
     if server:
-        configure_tracing(server, resource)
+        if configure_provider:
+            configure_tracing(server, resource)
 
         if devMode:
             log_level = logging.DEBUG
         else:
             log_level = logging.INFO
-        configure_logging(server, resource, log_level)
+        configure_logging(server, resource, log_level, configure_provider)
 
-    configure_metrics(server, resource)
+    configure_metrics(server, resource, configure_provider)
