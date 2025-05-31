@@ -5,16 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.12",
-    "opentelemetry-api>=1.32.0",
-    "opentelemetry-exporter-otlp>=1.32.0",
+    "opentelemetry-api>=1.33.1",
+    "opentelemetry-exporter-otlp>=1.33.1",
     "opentelemetry-exporter-prometheus>=0.54b1",
-    "opentelemetry-instrumentation-asyncio>=0.53b0",
     "opentelemetry-instrumentation-logging>=0.54b1",
-    "opentelemetry-instrumentation-threading>=0.54b1",
-    "opentelemetry-sdk>=1.32.0",
-    "prometheus-client>=0.22.0",
-    "pyroscope-io>=0.8.8",
-    "pyroscope-otel>=0.4.0",
-    "uvicorn>=0.34.2",
+    "opentelemetry-sdk>=1.33.1",
+    "pyroscope-io>=0.8.11",
+    "pyroscope-otel>=0.4.1",
 ]

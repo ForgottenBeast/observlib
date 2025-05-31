@@ -1,7 +1,7 @@
 from opentelemetry.trace import Link, SpanContext, TraceFlags
 from opentelemetry.sdk.trace import Status, StatusCode
 from opentelemetry import trace
-from observlib import sname
+from .globals import get_sname
 
 
 def span_from_context(span_name, trace_id, span_id):
@@ -11,7 +11,7 @@ def span_from_context(span_name, trace_id, span_id):
         is_remote=True,
         trace_flags=TraceFlags(TraceFlags.SAMPLED),
     )
-    return trace.get_tracer(sname).start_as_current_span(
+    return trace.get_tracer(get_sname()).start_as_current_span(
         span_name, links=[Link(parent_context)]
     )
 

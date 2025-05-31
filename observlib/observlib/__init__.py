@@ -8,16 +8,10 @@ from .span_utils import (
     set_span_error_status as set_span_error_status,
 )
 
-from .traces import configure_tracing, get_trace as get_trace
+from .traces import configure_tracing
 from .logs import configure_logging
 from .metrics import configure_metrics
-from .metrics.counter import (
-    create_counter as create_counter,
-    create_gauge as create_gauge,
-    create_histogram as create_histogram,
-)
-
-sname = None
+from .globals import set_sname
 
 
 def configure_telemetry(
@@ -25,11 +19,8 @@ def configure_telemetry(
     server=None,
     pyroscope_server=None,
     devMode=False,
-    legacy_prometheus_config="127.0.0.1:0",
-    prometheus_registry=None,
 ):
-    global sname
-    sname = service_name
+    set_sname(service_name)
     if devMode:
         sample_rate = 100
     else:
@@ -51,8 +42,6 @@ def configure_telemetry(
             log_level = logging.DEBUG
         else:
             log_level = logging.INFO
-        configure_logging(server, resource, service_name, log_level)
+        configure_logging(server, resource, log_level)
 
-    configure_metrics(
-        legacy_prometheus_config, server, service_name, resource, prometheus_registry
-    )
+    configure_metrics(server, resource)
