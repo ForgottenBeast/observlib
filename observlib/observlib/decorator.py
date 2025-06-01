@@ -18,7 +18,6 @@ def traced(
     failure_counter=None,
     label_fn=None,
     amount_fn=None,
-    parent_ctx=None,
 ):
     def decorator(func):
         def resolve(maybe_callable):
@@ -26,11 +25,8 @@ def traced(
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
-            parent_ctx = kwargs.pop("parent_context", None)
             start = time.perf_counter()
-            with trace.get_tracer(get_sname()).start_as_current_span(
-                func.__name__, context=parent_ctx
-            ):
+            with trace.get_tracer(get_sname()).start_as_current_span(func.__name__):
                 result = None
                 error = None
                 try:
@@ -58,11 +54,8 @@ def traced(
 
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
-            parent_ctx = kwargs.pop("parent_context", None)
             start = time.perf_counter()
-            with trace.get_tracer(get_sname()).start_as_current_span(
-                func.__name__, context=parent_ctx
-            ):
+            with trace.get_tracer(get_sname()).start_as_current_span(func.__name__):
                 result = None
                 error = None
                 try:
