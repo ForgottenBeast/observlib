@@ -73,9 +73,13 @@ def traced(
                     labels = (
                         label_fn(result=result, exception=error) if label_fn else {}
                     )
+                    amount = (
+                        amount_fn(result=result, exception=error) if amount_fn else 1
+                    )
                     counter_name = failure_counter if error else success_counter
                     counter = resolve(counter_factory, [counter_name])
-                    counter.labels(*labels).inc()
+                    if counter:
+                        counter.add(amount, attributes=labels)
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
