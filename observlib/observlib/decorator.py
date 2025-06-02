@@ -3,19 +3,13 @@ from opentelemetry import trace
 import time
 import asyncio
 
-exec_time_histogram = None
-
-
-def set_exec_time_histogram(histogram):
-    global exec_time_histogram
-    exec_time_histogram = histogram
-
 
 def traced(
-    timed=False,
+    timing_histogram=None,
     success_counter=None,
     failure_counter=None,
     counter_factory=None,
+    timer_factory=None,
     label_fn=None,
     amount_fn=None,
     tracer=None,
@@ -38,7 +32,8 @@ def traced(
                     raise
 
                 finally:
-                    if timed:
+                    if timing_histogram:
+                        exec_time_histogram = resolve(timer_factory, [timing_histogram])
                         exec_time_histogram.record(
                             time.perf_counter() - start, {"function": func.__name__}
                         )
@@ -69,7 +64,8 @@ def traced(
                     raise
 
                 finally:
-                    if timed:
+                    if timing_histogram:
+                        exec_time_histogram = resolve(timer_factory, [timing_histogram])
                         exec_time_histogram.record(
                             time.perf_counter() - start, {"function": func.__name__}
                         )

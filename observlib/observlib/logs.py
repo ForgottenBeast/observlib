@@ -9,17 +9,16 @@ LoggingInstrumentor().instrument(set_logging_format=True)
 
 
 def configure_logging(
-    server, resource, log_level=logging.NOTSET, configure_provider=False
+    server,
+    resource,
+    log_level=logging.NOTSET,
 ):
-    if configure_provider:
-        otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
+    otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
 
-        # Set up the logger provider with a batch log processor
-        logger_provider = LoggerProvider(resource=resource)
-        logger_provider.add_log_record_processor(
-            BatchLogRecordProcessor(otlp_log_exporter)
-        )
-        set_logger_provider(logger_provider)
+    # Set up the logger provider with a batch log processor
+    logger_provider = LoggerProvider(resource=resource)
+    logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+    set_logger_provider(logger_provider)
 
     # Set up Python logging integration
     provider = get_logger_provider()
