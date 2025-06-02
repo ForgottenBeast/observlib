@@ -43,9 +43,9 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    counter = resolve(counter_factory, [counter])
-                    if counter:
-                        counter.add(amount, attributes=labels)
+                    actual_counter = resolve(counter_factory, [counter])
+                    if actual_counter:
+                        actual_counter.add(amount, attributes=labels)
 
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
@@ -74,9 +74,9 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    counter = resolve(counter_factory, [counter])
-                    if counter:
-                        counter.add(amount, attributes=labels)
+                    actual_counter = resolve(counter_factory, [counter])
+                    if actual_counter:
+                        actual_counter.add(amount, attributes=labels)
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
