@@ -2,7 +2,6 @@ from functools import wraps
 from opentelemetry import trace
 import time
 import asyncio
-from .globals import get_sname
 
 exec_time_histogram = None
 
@@ -18,7 +17,9 @@ def traced(
     failure_counter=None,
     label_fn=None,
     amount_fn=None,
-):
+    tracer = None,
+    )
+:
     def decorator(func):
         def resolve(maybe_callable):
             return maybe_callable() if callable(maybe_callable) else maybe_callable
@@ -26,7 +27,7 @@ def traced(
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             start = time.perf_counter()
-            with trace.get_tracer(get_sname()).start_as_current_span(func.__name__):
+            with trace.get_tracer(tracer).start_as_current_span(func.__name__):
                 result = None
                 error = None
                 try:
@@ -55,7 +56,7 @@ def traced(
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             start = time.perf_counter()
-            with trace.get_tracer(get_sname()).start_as_current_span(func.__name__):
+            with trace.get_tracer(tracer).start_as_current_span(func.__name__):
                 result = None
                 error = None
                 try:
