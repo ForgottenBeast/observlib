@@ -1,16 +1,15 @@
-from .globals import get_sname
 import logging
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
-from opentelemetry._logs import set_logger_provider
+from opentelemetry._logs import set_logger_provider, get_logger_provider
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
 LoggingInstrumentor().instrument(set_logging_format=True)
 
 
 def configure_logging(
-    server, resource, log_level=logging.INFO, configure_provider=False
+    server, resource, log_level=logging.NOTSET, configure_provider=False
 ):
     if configure_provider:
         otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
@@ -23,7 +22,11 @@ def configure_logging(
         set_logger_provider(logger_provider)
 
     # Set up Python logging integration
-    handler = LoggingHandler(level=log_level, logger_provider=logger_provider)
-    logger = logging.getLogger(get_sname())
-    logger.addHandler(handler)
-    logger.setLevel(log_level)
+    provider = get_logger_provider()
+    logger = logging.getLogger()
+    if not any(
+    isinstance(h, LoggingHandler) for h in logging.getLogger().handlers
+    ):
+        handler = LoggingHandler(level=log_level, logger_provider=provider)
+        logger.addHandler(handler)
+        logger.setLevel(log_level)
