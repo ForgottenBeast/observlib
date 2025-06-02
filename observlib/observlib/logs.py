@@ -24,9 +24,7 @@ def configure_logging(
     # Set up Python logging integration
     provider = get_logger_provider()
     logger = logging.getLogger()
-    if not any(
-    isinstance(h, LoggingHandler) for h in logging.getLogger().handlers
-    ):
+    if not any(isinstance(h, LoggingHandler) for h in logging.getLogger().handlers):
         handler = LoggingHandler(level=log_level, logger_provider=provider)
         logger.addHandler(handler)
         logger.setLevel(log_level)

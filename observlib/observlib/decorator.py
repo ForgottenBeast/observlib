@@ -15,14 +15,14 @@ def traced(
     timed=False,
     success_counter=None,
     failure_counter=None,
+    counter_factory=None,
     label_fn=None,
     amount_fn=None,
-    tracer = None,
-    )
-:
+    tracer=None,
+):
     def decorator(func):
-        def resolve(maybe_callable):
-            return maybe_callable() if callable(maybe_callable) else maybe_callable
+        def resolve(maybe_callable, args=[]):
+            return maybe_callable(*args) if callable(maybe_callable) else maybe_callable
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
@@ -49,7 +49,8 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    counter = resolve(failure_counter if error else success_counter)
+                    counter_name = failure_counter if error else success_counter
+                    counter = resolve(counter_factory, [counter_name])
                     if counter:
                         counter.add(amount, attributes=labels)
 
@@ -76,7 +77,8 @@ def traced(
                     labels = (
                         label_fn(result=result, exception=error) if label_fn else {}
                     )
-                    counter = resolve(failure_counter if error else success_counter)
+                    counter_name = failure_counter if error else success_counter
+                    counter = resolve(counter_factory, [counter_name])
                     counter.labels(*labels).inc()
 
         if asyncio.iscoroutinefunction(func):
