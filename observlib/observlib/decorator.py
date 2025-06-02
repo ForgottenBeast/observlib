@@ -6,8 +6,7 @@ import asyncio
 
 def traced(
     timing_histogram=None,
-    success_counter=None,
-    failure_counter=None,
+    counter=None,
     counter_factory=None,
     timer_factory=None,
     label_fn=None,
@@ -44,8 +43,7 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    counter_name = failure_counter if error else success_counter
-                    counter = resolve(counter_factory, [counter_name])
+                    counter = resolve(counter_factory, [counter])
                     if counter:
                         counter.add(amount, attributes=labels)
 
@@ -76,8 +74,7 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    counter_name = failure_counter if error else success_counter
-                    counter = resolve(counter_factory, [counter_name])
+                    counter = resolve(counter_factory, [counter])
                     if counter:
                         counter.add(amount, attributes=labels)
 
