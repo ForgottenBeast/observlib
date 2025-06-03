@@ -16,7 +16,7 @@ def traced(
     def decorator(func):
         def resolve(maybe_callable, args=[], kwargs={}):
             return (
-                maybe_callable(**kwargs) if callable(maybe_callable) else maybe_callable
+                maybe_callable(*args,**kwargs) if callable(maybe_callable) else maybe_callable
             )
 
         @wraps(func)
