@@ -14,8 +14,8 @@ def traced(
     tracer=None,
 ):
     def decorator(func):
-        def resolve(maybe_callable, args=[]):
-            return maybe_callable(*args) if callable(maybe_callable) else maybe_callable
+        def resolve(maybe_callable,args = [], kwargs={}):
+            return maybe_callable(**kwargs) if callable(maybe_callable) else maybe_callable
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
@@ -43,7 +43,14 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    actual_counter = resolve(counter_factory, [counter])
+
+                    if isinstance(counter, dict):
+                        resolve_args = []
+                        resolve_kwargs = counter
+                    else:
+                        resolve_args = counter,
+                        resolve_kwargs = {}
+                    actual_counter = resolve(counter_factory, resolve_args,resolve_kwargs)
                     if actual_counter:
                         actual_counter.add(amount, attributes=labels)
 
@@ -74,7 +81,14 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    actual_counter = resolve(counter_factory, [counter])
+                    if isinstance(counter, dict):
+                        resolve_args = []
+                        resolve_kwargs = counter
+                    else:
+                        resolve_args = counter,
+                        resolve_kwargs = {}
+                    actual_counter = resolve(counter_factory, resolve_args,resolve_kwargs)
+
                     if actual_counter:
                         actual_counter.add(amount, attributes=labels)
 
