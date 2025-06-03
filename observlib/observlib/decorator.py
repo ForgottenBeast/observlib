@@ -14,11 +14,6 @@ def traced(
     tracer=None,
 ):
     def decorator(func):
-        def resolve(maybe_callable, args=[], kwargs={}):
-            return (
-                maybe_callable(*args,**kwargs) if callable(maybe_callable) else maybe_callable
-            )
-
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             start = time.perf_counter()
@@ -33,8 +28,13 @@ def traced(
                     raise
 
                 finally:
-                    if timing_histogram:
-                        exec_time_histogram = resolve(timer_factory, [timing_histogram])
+                    if timing_histogram and callable(timer_factory):
+                        if isinstance(timing_histogram, (str, bytes)):
+                            config = {"name": timing_histogram}
+                        else:
+                            config = timing_histogram
+
+                        exec_time_histogram = timer_factory(config)
                         exec_time_histogram.record(
                             time.perf_counter() - start, {"function": func.__name__}
                         )
@@ -46,16 +46,13 @@ def traced(
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
 
-                    if isinstance(counter, dict):
-                        resolve_args = []
-                        resolve_kwargs = counter
-                    else:
-                        resolve_args = (counter,)
-                        resolve_kwargs = {}
-                    actual_counter = resolve(
-                        counter_factory, resolve_args, resolve_kwargs
-                    )
-                    if actual_counter:
+                    if counter and callable(counter_factory):
+                        if isinstance(counter, (str, bytes)):
+                            config = {"name": counter}
+                        else:
+                            config = counter
+
+                        actual_counter = counter_factory(config)
                         actual_counter.add(amount, attributes=labels)
 
         @wraps(func)
@@ -73,8 +70,13 @@ def traced(
                     raise
 
                 finally:
-                    if timing_histogram:
-                        exec_time_histogram = resolve(timer_factory, [timing_histogram])
+                    if timing_histogram and callable(timer_factory):
+                        if isinstance(timing_histogram, (str, bytes)):
+                            config = {"name": timing_histogram}
+                        else:
+                            config = timing_histogram
+
+                        exec_time_histogram = timer_factory(config)
                         exec_time_histogram.record(
                             time.perf_counter() - start, {"function": func.__name__}
                         )
@@ -85,17 +87,14 @@ def traced(
                     amount = (
                         amount_fn(result=result, exception=error) if amount_fn else 1
                     )
-                    if isinstance(counter, dict):
-                        resolve_args = []
-                        resolve_kwargs = counter
-                    else:
-                        resolve_args = (counter,)
-                        resolve_kwargs = {}
-                    actual_counter = resolve(
-                        counter_factory, resolve_args, resolve_kwargs
-                    )
 
-                    if actual_counter:
+                    if counter and callable(counter_factory):
+                        if isinstance(counter, (str, bytes)):
+                            config = {"name": counter}
+                        else:
+                            config = counter
+
+                        actual_counter = counter_factory(config)
                         actual_counter.add(amount, attributes=labels)
 
         if asyncio.iscoroutinefunction(func):
