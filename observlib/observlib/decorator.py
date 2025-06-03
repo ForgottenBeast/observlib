@@ -47,10 +47,10 @@ def traced(
                     time.perf_counter() - start_time, attributes={"function": func_name}
                 )
 
-            labels = label_fn(result=result, exception=error) if label_fn else {}
+            labels = label_fn(result,error) if label_fn else {}
             if debug:
                 print(f"labels: {labels}")
-            amount = amount_fn(result=result, exception=error) if amount_fn else 1
+            amount = amount_fn(result,error) if amount_fn else 1
             if debug:
                 print(f"amount: {amount}")
 
