@@ -12,11 +12,21 @@ def traced(
     label_fn=None,
     amount_fn=None,
     tracer=None,
-    debug = False
+    debug=False,
 ):
-
     def decorator(func):
-        def record_data(func_name, timing_histogram, counter, counter_factory,label_fn, amount_fn, start_time,result, error, debug):
+        def record_data(
+            func_name,
+            timing_histogram,
+            counter,
+            counter_factory,
+            label_fn,
+            amount_fn,
+            start_time,
+            result,
+            error,
+            debug,
+        ):
             if timing_histogram and callable(timer_factory):
                 if isinstance(timing_histogram, (str, bytes)):
                     config = {"name": timing_histogram}
@@ -34,17 +44,13 @@ def traced(
                     raise
 
                 exec_time_histogram.record(
-                    time.perf_counter() - start_time, attributes = {"function": func_name}
+                    time.perf_counter() - start_time, attributes={"function": func_name}
                 )
 
-            labels = (
-                label_fn(result=result, exception=error) if label_fn else {}
-            )
+            labels = label_fn(result=result, exception=error) if label_fn else {}
             if debug:
                 print(f"labels: {labels}")
-            amount = (
-                amount_fn(result=result, exception=error) if amount_fn else 1
-            )
+            amount = amount_fn(result=result, exception=error) if amount_fn else 1
             if debug:
                 print(f"amount: {amount}")
 
@@ -83,7 +89,18 @@ def traced(
 
                 finally:
                     try:
-                        record_data(func.__name__, timing_histogram, counter, counter_factory,label_fn, amount_fn, start, result, error,debug)
+                        record_data(
+                            func.__name__,
+                            timing_histogram,
+                            counter,
+                            counter_factory,
+                            label_fn,
+                            amount_fn,
+                            start,
+                            result,
+                            error,
+                            debug,
+                        )
                     except Exception as ex:
                         if debug:
                             print(f"exception recording data: {ex}")
@@ -106,7 +123,18 @@ def traced(
 
                 finally:
                     try:
-                        record_data(func.__name__, timing_histogram, counter, counter_factory,label_fn, amount_fn, start, result, error,debug)
+                        record_data(
+                            func.__name__,
+                            timing_histogram,
+                            counter,
+                            counter_factory,
+                            label_fn,
+                            amount_fn,
+                            start,
+                            result,
+                            error,
+                            debug,
+                        )
                     except Exception as ex:
                         if debug:
                             print(f"exception recording data: {ex}")
