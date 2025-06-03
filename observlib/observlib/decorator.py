@@ -12,17 +12,27 @@ def traced(
     label_fn=None,
     amount_fn=None,
     tracer=None,
+    debug = False
 ):
 
     def decorator(func):
-        def record_data(func_name, timing_histogram, counter, counter_factory,label_fn, amount_fn, start_time,result, error):
+        def record_data(func_name, timing_histogram, counter, counter_factory,label_fn, amount_fn, start_time,result, error, debug):
             if timing_histogram and callable(timer_factory):
                 if isinstance(timing_histogram, (str, bytes)):
                     config = {"name": timing_histogram}
                 else:
                     config = timing_histogram
 
-                exec_time_histogram = timer_factory(frozenset(config.items()))
+                if debug:
+                    print(f"requesting histogram with {config}")
+
+                try:
+                    exec_time_histogram = timer_factory(frozenset(config.items()))
+                except Exception as ex:
+                    if debug:
+                        print(f"error requesting histogram: {ex}")
+                    raise
+
                 exec_time_histogram.record(
                     time.perf_counter() - start_time, attributes = {"function": func_name}
                 )
@@ -30,9 +40,13 @@ def traced(
             labels = (
                 label_fn(result=result, exception=error) if label_fn else {}
             )
+            if debug:
+                print(f"labels: {labels}")
             amount = (
                 amount_fn(result=result, exception=error) if amount_fn else 1
             )
+            if debug:
+                print(f"amount: {amount}")
 
             if counter and callable(counter_factory):
                 if isinstance(counter, (str, bytes)):
@@ -40,11 +54,22 @@ def traced(
                 else:
                     config = counter
 
-                actual_counter = counter_factory(frozenset(config.items()))
+                if debug:
+                    print(f"requesting counter with config: {config}")
+
+                try:
+                    actual_counter = counter_factory(frozenset(config.items()))
+                except Exception as ex:
+                    if debug:
+                        print(f"error requesting counter: {ex}")
+                    raise
+
                 actual_counter.add(amount, attributes=labels)
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
+            if debug:
+                print(f"called sync wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
             with trace.get_tracer(tracer).start_as_current_span(func.__name__):
                 result = None
@@ -57,10 +82,16 @@ def traced(
                     raise
 
                 finally:
-                    record_data(func.__name__, timing_histogram, counter, counter_factory,label_fn, amount_fn, start, result, error)
+                    try:
+                        record_data(func.__name__, timing_histogram, counter, counter_factory,label_fn, amount_fn, start, result, error,debug)
+                    except Exception as ex:
+                        if debug:
+                            print(f"exception recording data: {ex}")
 
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
+            if debug:
+                print(f"called async wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
             with trace.get_tracer(tracer).start_as_current_span(func.__name__):
                 result = None
@@ -74,7 +105,11 @@ def traced(
                     raise
 
                 finally:
-                    record_data(func.__name__, timing_histogram, counter, counter_factory,label_fn, amount_fn, start, result, error)
+                    try:
+                        record_data(func.__name__, timing_histogram, counter, counter_factory,label_fn, amount_fn, start, result, error,debug)
+                    except Exception as ex:
+                        if debug:
+                            print(f"exception recording data: {ex}")
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
