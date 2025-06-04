@@ -5,7 +5,7 @@ from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry._logs import set_logger_provider, get_logger_provider
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
-LoggingInstrumentor().instrument()
+LoggingInstrumentor().instrument(set_logging_format=True)
 
 
 def configure_logging(
@@ -27,4 +27,3 @@ def configure_logging(
         handler = LoggingHandler(level=log_level, logger_provider=provider)
         logger.addHandler(handler)
         logger.setLevel(log_level)
-        logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
