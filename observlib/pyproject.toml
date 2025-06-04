@@ -12,4 +12,5 @@ dependencies = [
     "opentelemetry-sdk>=1.33.1",
     "pyroscope-io>=0.8.11",
     "pyroscope-otel>=0.4.1",
+    "python-json-logger>=3.3.0",
 ]
