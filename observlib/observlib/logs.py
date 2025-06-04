@@ -1,5 +1,4 @@
 import logging
-from pythonjsonlogger.json import JsonFormatter
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -26,6 +25,6 @@ def configure_logging(
     logger = logging.getLogger()
     if not any(isinstance(h, LoggingHandler) for h in logging.getLogger().handlers):
         handler = LoggingHandler(level=log_level, logger_provider=provider)
-        handler.setFormatter(JsonFormatter())
         logger.addHandler(handler)
         logger.setLevel(log_level)
+        logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
