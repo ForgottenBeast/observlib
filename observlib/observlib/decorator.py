@@ -30,6 +30,13 @@ def traced(
             debug,
             func_name_as_label,
         ):
+            labels = label_fn(result, error) if label_fn else {}
+
+            if func_name_as_label:
+                labels["function"] = func_name
+            if debug:
+                print(f"labels: {labels}")
+
             if timing_histogram and callable(timer_factory):
                 if isinstance(timing_histogram, (str, bytes)):
                     config = {"name": timing_histogram}
@@ -47,16 +54,12 @@ def traced(
                     raise
 
                 exec_time_histogram.record(
-                    time.perf_counter() - start_time, attributes={"function": func_name}
+                    time.perf_counter() - start_time,
+                    attributes=labels
+                    | {
+                        "function": func_name
+                    },  # histogram always gets the function name
                 )
-
-            labels = label_fn(result, error) if label_fn else {}
-
-            if func_name_as_label:
-                labels["func"] = func_name
-
-            if debug:
-                print(f"labels: {labels}")
 
             amount = amount_fn(result, error) if amount_fn else 1
             if debug:
