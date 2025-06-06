@@ -3,7 +3,6 @@ from opentelemetry.sdk.resources import Resource
 
 import pyroscope
 from .decorator import traced as traced
-from .span_utils import set_span_error_status as set_span_error_status
 
 from .traces import configure_tracing
 from .logs import configure_logging

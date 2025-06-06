@@ -1,4 +1,5 @@
 from functools import wraps
+from opentelemetry.sdk.trace import Status, StatusCode
 from opentelemetry import trace
 import time
 import asyncio
@@ -13,7 +14,7 @@ def traced(
     amount_fn=None,
     tracer=None,
     debug=False,
-    func_name_as_label = False,
+    func_name_as_label=False,
 ):
     def decorator(func):
         def record_data(
@@ -49,7 +50,7 @@ def traced(
                     time.perf_counter() - start_time, attributes={"function": func_name}
                 )
 
-            labels = label_fn(result,error) if label_fn else {}
+            labels = label_fn(result, error) if label_fn else {}
 
             if func_name_as_label:
                 labels["func"] = func_name
@@ -57,7 +58,7 @@ def traced(
             if debug:
                 print(f"labels: {labels}")
 
-            amount = amount_fn(result,error) if amount_fn else 1
+            amount = amount_fn(result, error) if amount_fn else 1
             if debug:
                 print(f"amount: {amount}")
 
@@ -84,7 +85,7 @@ def traced(
             if debug:
                 print(f"called sync wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
-            with trace.get_tracer(tracer).start_as_current_span(func.__name__):
+            with trace.get_tracer(tracer).start_as_current_span(func.__name__) as span:
                 result = None
                 error = None
                 try:
@@ -92,6 +93,7 @@ def traced(
                     return result
                 except Exception as ex:
                     error = ex
+                    span.set_status(Status(StatusCode.ERROR))
                     raise
 
                 finally:
@@ -118,7 +120,7 @@ def traced(
             if debug:
                 print(f"called async wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
-            with trace.get_tracer(tracer).start_as_current_span(func.__name__):
+            with trace.get_tracer(tracer).start_as_current_span(func.__name__) as span:
                 result = None
                 error = None
                 try:
@@ -127,6 +129,7 @@ def traced(
 
                 except Exception as ex:
                     error = ex
+                    span.set_status(Status(StatusCode.ERROR))
                     raise
 
                 finally:
