@@ -13,6 +13,7 @@ def traced(
     amount_fn=None,
     tracer=None,
     debug=False,
+    func_name_as_label = False,
 ):
     def decorator(func):
         def record_data(
@@ -26,6 +27,7 @@ def traced(
             result,
             error,
             debug,
+            func_name_as_label,
         ):
             if timing_histogram and callable(timer_factory):
                 if isinstance(timing_histogram, (str, bytes)):
@@ -48,8 +50,13 @@ def traced(
                 )
 
             labels = label_fn(result,error) if label_fn else {}
+
+            if func_name_as_label:
+                labels["func"] = func_name
+
             if debug:
                 print(f"labels: {labels}")
+
             amount = amount_fn(result,error) if amount_fn else 1
             if debug:
                 print(f"amount: {amount}")
@@ -100,6 +107,7 @@ def traced(
                             result,
                             error,
                             debug,
+                            func_name_as_label,
                         )
                     except Exception as ex:
                         if debug:
@@ -134,6 +142,7 @@ def traced(
                             result,
                             error,
                             debug,
+                            func_name_as_label,
                         )
                     except Exception as ex:
                         if debug:
