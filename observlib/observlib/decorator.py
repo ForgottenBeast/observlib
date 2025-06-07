@@ -14,7 +14,7 @@ def traced(
     amount_fn=None,
     tracer=None,
     debug=False,
-    func_name_as_label=False,
+    func_name_as_label=True,
 ):
     def decorator(func):
         def record_data(
