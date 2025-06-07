@@ -6,7 +6,7 @@ import asyncio
 
 
 def traced(
-    timing_histogram=None,
+    timer=None,
     counter=None,
     counter_factory=None,
     timer_factory=None,
@@ -19,7 +19,7 @@ def traced(
     def decorator(func):
         def record_data(
             func_name,
-            timing_histogram,
+            timer,
             counter,
             counter_factory,
             label_fn,
@@ -37,11 +37,11 @@ def traced(
             if debug:
                 print(f"labels: {labels}")
 
-            if timing_histogram and callable(timer_factory):
-                if isinstance(timing_histogram, (str, bytes)):
-                    config = {"name": timing_histogram}
+            if timer and callable(timer_factory):
+                if isinstance(timer, (str, bytes)):
+                    config = {"name": timer}
                 else:
-                    config = timing_histogram
+                    config = timer
 
                 if debug:
                     print(f"requesting histogram with {config}")
@@ -103,7 +103,7 @@ def traced(
                     try:
                         record_data(
                             func.__name__,
-                            timing_histogram,
+                            timer,
                             counter,
                             counter_factory,
                             label_fn,
@@ -139,7 +139,7 @@ def traced(
                     try:
                         record_data(
                             func.__name__,
-                            timing_histogram,
+                            timer,
                             counter,
                             counter_factory,
                             label_fn,
