@@ -7,9 +7,9 @@ import asyncio
 
 def traced(
     timer=None,
+    timer_factory=None,
     counter=None,
     counter_factory=None,
-    timer_factory=None,
     label_fn=None,
     amount_fn=None,
     tracer=None,
@@ -32,7 +32,16 @@ def traced(
             func_args,
             func_kwargs,
         ):
-            labels = label_fn(result, error, tuple(func_args), frozenset(func_kwargs.items()) ) if label_fn else {}
+            labels = (
+                label_fn(
+                    result,
+                    error,
+                    func_args=tuple(func_args),
+                    func_kwargs=frozenset(func_kwargs.items()),
+                )
+                if label_fn
+                else {}
+            )
 
             if func_name_as_label:
                 labels["function"] = func_name
@@ -63,7 +72,16 @@ def traced(
                     },  # histogram always gets the function name
                 )
 
-            amount = amount_fn(result, error) if amount_fn else 1
+            amount = (
+                amount_fn(
+                    result,
+                    error,
+                    func_args=tuple(func_args),
+                    func_kwargs=frozenset(func_kwargs.items()),
+                )
+                if amount_fn
+                else 1
+            )
             if debug:
                 print(f"amount: {amount}")
 
