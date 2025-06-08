@@ -29,8 +29,10 @@ def traced(
             error,
             debug,
             func_name_as_label,
+            func_args,
+            func_kwargs,
         ):
-            labels = label_fn(result, error) if label_fn else {}
+            labels = label_fn(result, error, tuple(func_args), frozenset(func_kwargs.items()) ) if label_fn else {}
 
             if func_name_as_label:
                 labels["function"] = func_name
@@ -113,6 +115,8 @@ def traced(
                             error,
                             debug,
                             func_name_as_label,
+                            args,
+                            kwargs,
                         )
                     except Exception as ex:
                         if debug:
@@ -149,6 +153,8 @@ def traced(
                             error,
                             debug,
                             func_name_as_label,
+                            args,
+                            kwargs,
                         )
                     except Exception as ex:
                         if debug:
