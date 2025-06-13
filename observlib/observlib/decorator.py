@@ -37,7 +37,7 @@ def traced(
                     result,
                     error,
                     func_args=func_args,
-                    func_kwargs=func_kwargs.items(),
+                    func_kwargs=func_kwargs,
                 )
                 if label_fn
                 else {}
@@ -76,8 +76,8 @@ def traced(
                 amount_fn(
                     result,
                     error,
-                    func_args=tuple(func_args),
-                    func_kwargs=frozenset(func_kwargs.items()),
+                    func_args=func_args,
+                    func_kwargs=func_kwargs,
                 )
                 if amount_fn
                 else 1
