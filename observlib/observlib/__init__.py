@@ -13,14 +13,14 @@ def configure_telemetry(
     service_name,
     server=None,
     pyroscope_server=None,
-    pyroscope_sample_rate = 5,
-    log_level = logging.INFO,
+    pyroscope_sample_rate=5,
+    log_level=logging.INFO,
 ):
     if pyroscope_server:
         pyroscope.configure(
             application_name=service_name,
             server_address="http://{}".format(pyroscope_server),
-            sample_rate=sample_rate,
+            sample_rate=pyroscope_sample_rate,
         )
 
     resource = Resource.create(attributes={"service.name": service_name})
