@@ -15,6 +15,7 @@ def configure_telemetry(
     pyroscope_server=None,
     pyroscope_sample_rate=5,
     log_level=logging.INFO,
+    resource_attrs={},
 ):
     if pyroscope_server:
         pyroscope.configure(
@@ -23,7 +24,9 @@ def configure_telemetry(
             sample_rate=pyroscope_sample_rate,
         )
 
-    resource = Resource.create(attributes={"service.name": service_name})
+    resource = Resource.create(
+        attributes={"service.name": service_name} | resource_attrs
+    )
 
     if server:
         configure_tracing(server, resource)
