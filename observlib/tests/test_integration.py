@@ -40,20 +40,25 @@ class TestConfigureTelemetry:
         # Verify metrics provider is set
         provider = metrics.get_meter_provider()
         assert isinstance(provider, MeterProvider)
-        assert provider.resource.attributes["service.name"] == "test-service"
+        assert provider._sdk_config.resource.attributes["service.name"] == "test-service"
 
     def test_configure_telemetry_with_resource_attrs(self):
         """Test that custom resource attributes are merged correctly."""
-        configure_telemetry(
-            "test-service",
-            resource_attrs={"env": "test", "version": "1.0"}
-        )
+        with patch("observlib.configure_metrics") as mock_metrics:
+            configure_telemetry(
+                "test-service",
+                resource_attrs={"env": "test", "version": "1.0"}
+            )
 
-        provider = metrics.get_meter_provider()
-        attrs = provider.resource.attributes
-        assert attrs["service.name"] == "test-service"
-        assert attrs["env"] == "test"
-        assert attrs["version"] == "1.0"
+            # Verify configure_metrics was called with the correct resource
+            mock_metrics.assert_called_once()
+            call_args = mock_metrics.call_args
+            resource = call_args[0][1]  # Second argument is the resource
+
+            attrs = resource.attributes
+            assert attrs["service.name"] == "test-service"
+            assert attrs["env"] == "test"
+            assert attrs["version"] == "1.0"
 
     def test_configure_telemetry_with_pyroscope_server(self):
         """Test that Pyroscope is configured when server is provided."""
@@ -77,7 +82,7 @@ class TestConfigureTelemetry:
         provider = metrics.get_meter_provider()
         assert isinstance(provider, MeterProvider)
         # Prometheus reader should be available
-        assert len(provider._metric_readers) >= 1
+        assert len(provider._all_metric_readers) >= 1
 
     def test_configure_telemetry_logging_to_stdout_without_server(self):
         """Test that logging is configured to stdout when no server is provided."""
@@ -92,8 +97,8 @@ class TestConfigureTelemetry:
         test_logger = logging.getLogger("test_logger")
         test_logger.info("test message")  # Should not raise
 
-    @patch("observlib.traces.configure_tracing")
-    @patch("observlib.logs.configure_logging")
+    @patch("observlib.configure_tracing")
+    @patch("observlib.configure_logging")
     def test_configure_telemetry_with_server(self, mock_logs, mock_traces):
         """Test that tracing and logging are configured when server is provided."""
         configure_telemetry("test-service", server="localhost:4317")
@@ -106,8 +111,8 @@ class TestConfigureTelemetry:
         assert call_args[0][0] == "localhost:4317"
         assert call_args[0][1].attributes["service.name"] == "test-service"
 
-    @patch("observlib.traces.configure_tracing")
-    @patch("observlib.logs.configure_logging")
+    @patch("observlib.configure_tracing")
+    @patch("observlib.configure_logging")
     def test_configure_telemetry_without_server_skips_traces_logs(self, mock_logs, mock_traces):
         """Test that tracing is skipped but logging is always configured."""
         configure_telemetry("test-service")
@@ -169,35 +174,25 @@ class TestTracedDecorator:
 
     def test_traced_decorator_creates_span(self):
         """Test that @traced decorator creates spans."""
-        configure_telemetry("test-service")
-        tracer = trace.get_tracer(__name__)
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-        spans = []
+        # Set up a tracer provider with in-memory exporter to capture spans
+        exporter = InMemorySpanExporter()
+        tracer_provider = TracerProvider()
+        tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(tracer_provider)
 
-        class SpanCapture:
-            def __enter__(self):
-                return self
+        @traced()
+        def test_func():
+            return "result"
 
-            def __exit__(self, *args):
-                pass
+        test_func()
 
-            def set_status(self, status):
-                pass
-
-        original_start = tracer.start_as_current_span
-
-        def capture_span(name):
-            spans.append(name)
-            return original_start(name)
-
-        with patch.object(tracer, 'start_as_current_span', side_effect=capture_span):
-            @traced(tracer=tracer)
-            def test_func():
-                return "result"
-
-            test_func()
-
-        assert "test_func" in spans
+        # Check that a span was created with the function name
+        spans = exporter.get_finished_spans()
+        assert len(spans) > 0
+        assert any(span.name == "test_func" for span in spans)
 
     def test_traced_decorator_with_timer_factory(self):
         """Test @traced decorator with histogram recording."""
@@ -459,9 +454,9 @@ class TestErrorHandling:
         def func_with_bad_factory():
             return "result"
 
-        # The function should still execute, but metric recording should fail gracefully
-        with pytest.raises(RuntimeError):
-            func_with_bad_factory()
+        # The function should still execute, metric recording errors are suppressed
+        result = func_with_bad_factory()
+        assert result == "result"
 
 
 class TestEdgeCases:
