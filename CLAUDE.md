@@ -16,8 +16,11 @@ observlib/
 │   ├── logs.py         # Logging configuration with OTLP
 │   ├── metrics.py      # Metrics configuration (Prometheus + OTLP)
 │   └── traces.py       # Tracing configuration with Pyroscope support
+├── tests/              # Test suite
+│   └── test_observlib.py  # Integration tests using pytest
 ├── nix/               # Nix development environment
 ├── pyproject.toml     # Project metadata and dependencies
+├── pytest.ini         # Pytest configuration
 └── uv.lock            # Locked dependency versions
 ```
 
@@ -48,12 +51,10 @@ The project uses Nix for reproducible development environments:
 ```bash
 # Enter development shell
 nix flake update  # Update dependencies if needed
-nix develop       # Activates development environment with Python 3.13, uv, ruff
-
-# Within the dev shell
-cd observlib
-uv sync           # Install dependencies in .venv
+nix develop       # Activates development environment with all dependencies
 ```
+
+All dependencies (both main and test) are installed via the Nix devshell. When you add new dependencies to `pyproject.toml`, update `nix/shells/dev/default.nix` to include them in the `packages` list.
 
 ## Common Commands
 
@@ -66,17 +67,26 @@ ruff format observlib/       # Format code
 **Running Code:**
 ```bash
 cd observlib
-python -m observlib          # If entry point is configured
 python -c "from observlib import configure_telemetry; ..."  # Direct imports
 ```
 
-**Dependency Management:**
+**Testing:**
 ```bash
-# Within nix develop, in observlib/ directory
-uv add package_name          # Add dependency
-uv remove package_name       # Remove dependency
-uv sync                      # Install from uv.lock
+cd observlib
+# Install test dependencies
+nix develop --command uv sync --extra test
+
+# Run all tests
+nix develop --command uv run pytest -v
+
+# Run specific test file
+nix develop --command uv run pytest tests/test_observlib.py -v
 ```
+
+**Dependency Management:**
+1. Update `pyproject.toml` to add/remove dependencies
+2. Update `nix/shells/dev/default.nix` to include the new packages in the `packages` list with `python313Packages.package_name`
+3. Re-enter the nix shell: `exit` and `nix develop`
 
 ## Key Dependencies
 
@@ -124,8 +134,39 @@ The `configure_telemetry()` function accepts `resource_attrs={}` (line 18 in `__
 
 ## Testing Approach
 
-The library is designed for integration with applications rather than having standalone tests. When modifying:
+The library includes comprehensive integration tests in `observlib/tests/test_observlib.py` using pytest. The test suite covers:
 
-- **Decorator changes**: Test with both sync and async functions in a sample application
-- **Configuration changes**: Verify output is sent to OTLP endpoint and Prometheus metrics are exposed
-- **Error handling**: Ensure exceptions are still raised and spans are properly marked as ERROR
+- **configure_telemetry() tests**: Validation of service name requirements, configuration with/without OTLP server, resource attributes, Pyroscope integration, and logging setup
+- **@traced decorator tests**:
+  - Basic functionality with sync and async functions
+  - Exception handling and error propagation
+  - Metrics recording (histograms and counters)
+  - Custom label and amount functions
+  - Function signature preservation
+  - Class methods and nested calls
+  - Generator functions
+- **Integration tests**: Real provider interactions and end-to-end flows
+
+### Running Tests
+
+Tests use pytest with the `pytest-asyncio` plugin for async test support. From the `observlib/` directory:
+
+```bash
+# Run all tests
+nix develop --command uv run pytest -v
+
+# Run with coverage
+nix develop --command uv run pytest --cov=observlib
+
+# Run specific test
+nix develop --command uv run pytest tests/test_observlib.py::test_traced_decorator_async_function -v
+```
+
+### Test Dependencies
+
+Test dependencies are defined in `pyproject.toml` under `[project.optional-dependencies]`:
+- `pytest>=7.0`: Test framework
+- `pytest-asyncio>=0.23.0`: Async test support
+- `pytest-mock>=3.12.0`: Mocking utilities
+
+Install with: `uv sync --extra test`
