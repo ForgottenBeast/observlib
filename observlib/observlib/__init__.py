@@ -1,5 +1,6 @@
 import logging
 from typing import Optional, Any
+from beartype import beartype
 from opentelemetry.sdk.resources import Resource
 
 import pyroscope
@@ -10,6 +11,7 @@ from .logs import configure_logging
 from .metrics import configure_metrics
 
 
+@beartype
 def configure_telemetry(
     service_name: str,
     server: Optional[str] = None,

@@ -1,5 +1,7 @@
 from functools import wraps
-from typing import Callable, TypeVar, ParamSpec, Optional, Any, Protocol, Union, Awaitable
+from typing import TypeVar, ParamSpec, Optional, Any, Protocol, runtime_checkable, TypeAlias
+from beartype import beartype
+from beartype.typing import Callable, Union, Awaitable
 from opentelemetry.sdk.trace import Status, StatusCode
 from opentelemetry import trace
 import time
@@ -13,10 +15,11 @@ P = ParamSpec('P')
 R = TypeVar('R')
 
 # Type aliases for clarity
-MetricConfig = Union[str, dict[str, Any]]
-Labels = dict[str, str]
+MetricConfig: TypeAlias = Union[str, dict[str, Any]]
+Labels: TypeAlias = dict[str, str]
 
 
+@runtime_checkable
 class MetricFactory(Protocol):
     """Protocol for metric factory callables."""
     def __call__(self, config: frozenset[tuple[str, Any]]) -> Any:
@@ -24,6 +27,7 @@ class MetricFactory(Protocol):
         ...
 
 
+@runtime_checkable
 class LabelFunction(Protocol):
     """Protocol for label generation functions."""
     def __call__(
@@ -37,6 +41,7 @@ class LabelFunction(Protocol):
         ...
 
 
+@runtime_checkable
 class AmountFunction(Protocol):
     """Protocol for amount calculation functions."""
     def __call__(
@@ -50,6 +55,7 @@ class AmountFunction(Protocol):
         ...
 
 
+@beartype
 def _normalize_metric_config(config: MetricConfig) -> dict[str, Any]:
     """Convert a metric config to a normalized dictionary.
 
@@ -61,9 +67,10 @@ def _normalize_metric_config(config: MetricConfig) -> dict[str, Any]:
     """
     if isinstance(config, (str, bytes)):
         return {"name": config}
-    return config
+    return config  # type: ignore[no-any-return]
 
 
+@beartype
 def traced(
     timer: Optional[MetricConfig] = None,
     timer_factory: Optional[MetricFactory] = None,
@@ -202,7 +209,7 @@ def traced(
                 result: Any = None
                 error: Optional[Exception] = None
                 try:
-                    result = await func(*args, **kwargs)  # type: ignore[misc]
+                    result = await func(*args, **kwargs)
                     return result  # type: ignore[no-any-return]
 
                 except Exception as ex:

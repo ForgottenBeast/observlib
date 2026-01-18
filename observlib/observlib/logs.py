@@ -1,5 +1,6 @@
 import logging
-from typing import Type, Optional
+from typing import Optional
+from beartype import beartype
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
@@ -10,7 +11,8 @@ from opentelemetry.instrumentation.logging import LoggingInstrumentor
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _has_handler(handlers: list[logging.Handler], handler_type: Type[logging.Handler]) -> bool:
+@beartype
+def _has_handler(handlers: list[logging.Handler], handler_type: type[logging.Handler]) -> bool:
     """Check if a handler of the given type is already present.
 
     Args:
@@ -23,6 +25,7 @@ def _has_handler(handlers: list[logging.Handler], handler_type: Type[logging.Han
     return any(isinstance(h, handler_type) for h in handlers)
 
 
+@beartype
 def configure_logging(
     server: Optional[str],
     resource: Resource,

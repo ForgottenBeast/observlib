@@ -1,4 +1,5 @@
 import logging
+from beartype import beartype
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -9,6 +10,7 @@ from opentelemetry import trace
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+@beartype
 def configure_tracing(server: str, resource: Resource) -> None:
     endpoint = f"http://{server}/v1/traces"
 

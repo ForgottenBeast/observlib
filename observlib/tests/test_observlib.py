@@ -11,6 +11,7 @@ import asyncio
 import logging
 import pytest
 from unittest.mock import patch, MagicMock
+from beartype.roar import BeartypeCallHintParamViolation
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.metrics import MeterProvider
@@ -25,13 +26,16 @@ from observlib import configure_telemetry, traced
 
 def test_configure_telemetry_requires_service_name():
     """Test that configure_telemetry requires a valid service_name."""
-    with pytest.raises(ValueError, match="service_name must be a non-empty string"):
+    # beartype catches None before manual validation
+    with pytest.raises(BeartypeCallHintParamViolation):
         configure_telemetry(None)
 
+    # Empty string passes type check but fails manual validation
     with pytest.raises(ValueError, match="service_name must be a non-empty string"):
         configure_telemetry("")
 
-    with pytest.raises(ValueError, match="service_name must be a non-empty string"):
+    # beartype catches non-string types before manual validation
+    with pytest.raises(BeartypeCallHintParamViolation):
         configure_telemetry(123)
 
 
@@ -876,3 +880,96 @@ def test_traced_decorator_func_name_as_label_with_timer():
     assert "attributes" in kwargs
     # The histogram ALWAYS gets function name according to decorator.py:84-86
     assert kwargs["attributes"]["function"] == "no_func_label"
+
+
+# ============================================================================
+# Beartype runtime type validation tests
+# ============================================================================
+
+def test_beartype_validates_configure_telemetry_types():
+    """Test that beartype catches type violations in configure_telemetry."""
+    # Invalid service_name types
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry(None)
+
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry(123)
+
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry(["invalid"])
+
+    # Invalid server type
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry("valid-service", server=123)
+
+    # Invalid log_level type
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry("valid-service", log_level="INFO")  # should be int
+
+    # Invalid resource_attrs type
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry("valid-service", resource_attrs="invalid")
+
+
+def test_beartype_validates_traced_decorator_types():
+    """Test that beartype catches type violations in traced decorator parameters."""
+    # Invalid debug type (should be bool)
+    with pytest.raises(BeartypeCallHintParamViolation):
+        @traced(debug="true")  # should be bool, not string
+        def func():
+            pass
+
+    # Invalid func_name_as_label type (should be bool)
+    with pytest.raises(BeartypeCallHintParamViolation):
+        @traced(func_name_as_label=1)  # should be bool, not int
+        def func():
+            pass
+
+    # Invalid tracer type (should be str or None)
+    with pytest.raises(BeartypeCallHintParamViolation):
+        @traced(tracer=123)  # should be str, not int
+        def func():
+            pass
+
+
+def test_beartype_validates_callback_protocols():
+    """Test that beartype validates callback function signatures."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    # Valid label_fn - should work
+    def valid_label_fn(result, error, func_args=None, func_kwargs=None):
+        return {"status": "ok"}
+
+    @traced(counter="calls", counter_factory=mock_factory, label_fn=valid_label_fn)
+    def func_with_valid_label():
+        return "result"
+
+    func_with_valid_label()  # Should work fine
+
+    # Valid amount_fn - should work
+    def valid_amount_fn(result, error, func_args=None, func_kwargs=None):
+        return 1
+
+    @traced(counter="calls", counter_factory=mock_factory, amount_fn=valid_amount_fn)
+    def func_with_valid_amount():
+        return "result"
+
+    func_with_valid_amount()  # Should work fine
+
+
+def test_beartype_runtime_validation_preserves_functionality():
+    """Test that beartype doesn't interfere with normal operation."""
+    configure_telemetry("test-service")
+
+    @traced()
+    def normal_function(x: int, y: str) -> str:
+        return f"{y}: {x}"
+
+    result = normal_function(42, "answer")
+    assert result == "answer: 42"
+
+    # Beartype validates the decorated function's parameters at runtime
+    # But our decorator doesn't apply beartype to the wrapped function itself
+    # so this tests that beartype on the decorator doesn't break the function

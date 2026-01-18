@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+from beartype import beartype
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
@@ -11,6 +12,7 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+@beartype
 def configure_metrics(server: Optional[str], resource: Resource) -> None:
     # always make metrics available to someone running a prometheus server
     service_name = resource.attributes.get("service.name", "unknown")
