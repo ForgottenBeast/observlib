@@ -30,24 +30,25 @@ def configure_logging(
         # Instrument Python logging to capture logs with OpenTelemetry
         LoggingInstrumentor().instrument(set_logging_format=True)
 
-        otlp_log_exporter = OTLPLogExporter(endpoint=f"http://{server}/v1/logs")
-
-        # Set up the logger provider with a batch log processor
-        logger_provider = LoggerProvider(resource=resource)
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
-        set_logger_provider(logger_provider)
-
-        # Set up Python logging integration
-        provider = get_logger_provider()
         root_logger = logging.getLogger()
-        if not _has_handler(root_logger.handlers, LoggingHandler):
-            handler = LoggingHandler(level=log_level, logger_provider=provider)
-            root_logger.addHandler(handler)
-            root_logger.setLevel(log_level)
 
-        # Add stdout handler if in dev or debug mode
-        attrs = resource.attributes
-        if attrs.get("env") == "dev" or attrs.get("debug") is True:
+        if server:
+            # Configure OTLP log exporter
+            otlp_log_exporter = OTLPLogExporter(endpoint=f"http://{server}/v1/logs")
+
+            # Set up the logger provider with a batch log processor
+            logger_provider = LoggerProvider(resource=resource)
+            logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+            set_logger_provider(logger_provider)
+
+            # Set up Python logging integration
+            provider = get_logger_provider()
+            if not _has_handler(root_logger.handlers, LoggingHandler):
+                handler = LoggingHandler(level=log_level, logger_provider=provider)
+                root_logger.addHandler(handler)
+                root_logger.setLevel(log_level)
+        else:
+            # No server configured - set up basic logging to stdout
             if not _has_handler(root_logger.handlers, logging.StreamHandler):
                 stdout_handler = logging.StreamHandler()
                 stdout_handler.setLevel(log_level)
@@ -56,6 +57,7 @@ def configure_logging(
                 )
                 stdout_handler.setFormatter(formatter)
                 root_logger.addHandler(stdout_handler)
+            root_logger.setLevel(log_level)
     except Exception as e:
         logger.error(f"Failed to configure logging: {e}")
         raise

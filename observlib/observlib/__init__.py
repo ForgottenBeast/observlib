@@ -36,6 +36,6 @@ def configure_telemetry(
 
     if server:
         configure_tracing(server, resource)
-        configure_logging(server, resource, log_level)
 
+    configure_logging(server, resource, log_level)
     configure_metrics(server, resource)
