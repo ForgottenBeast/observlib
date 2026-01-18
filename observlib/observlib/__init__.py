@@ -1,4 +1,5 @@
 import logging
+from typing import Optional, Any
 from opentelemetry.sdk.resources import Resource
 
 import pyroscope
@@ -10,13 +11,13 @@ from .metrics import configure_metrics
 
 
 def configure_telemetry(
-    service_name,
-    server=None,
-    pyroscope_server=None,
-    pyroscope_sample_rate=5,
-    log_level=logging.INFO,
-    resource_attrs=None,
-):
+    service_name: str,
+    server: Optional[str] = None,
+    pyroscope_server: Optional[str] = None,
+    pyroscope_sample_rate: int = 5,
+    log_level: int = logging.INFO,
+    resource_attrs: Optional[dict[str, Any]] = None,
+) -> None:
     if not service_name or not isinstance(service_name, str):
         raise ValueError("service_name must be a non-empty string")
 

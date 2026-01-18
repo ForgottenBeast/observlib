@@ -1,14 +1,16 @@
 import logging
+from typing import Type, Optional
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry._logs import set_logger_provider, get_logger_provider
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _has_handler(handlers, handler_type):
+def _has_handler(handlers: list[logging.Handler], handler_type: Type[logging.Handler]) -> bool:
     """Check if a handler of the given type is already present.
 
     Args:
@@ -22,10 +24,10 @@ def _has_handler(handlers, handler_type):
 
 
 def configure_logging(
-    server,
-    resource,
-    log_level=logging.NOTSET,
-):
+    server: Optional[str],
+    resource: Resource,
+    log_level: int = logging.NOTSET,
+) -> None:
     try:
         # Instrument Python logging to capture logs with OpenTelemetry
         LoggingInstrumentor().instrument(set_logging_format=True)

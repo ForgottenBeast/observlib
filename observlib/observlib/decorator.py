@@ -1,14 +1,56 @@
 from functools import wraps
+from typing import Callable, TypeVar, ParamSpec, Optional, Any, Protocol, Union, Awaitable
 from opentelemetry.sdk.trace import Status, StatusCode
 from opentelemetry import trace
 import time
 import asyncio
 import logging
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
+
+# Type variables for generic function signatures
+P = ParamSpec('P')
+R = TypeVar('R')
+
+# Type aliases for clarity
+MetricConfig = Union[str, dict[str, Any]]
+Labels = dict[str, str]
 
 
-def _normalize_metric_config(config):
+class MetricFactory(Protocol):
+    """Protocol for metric factory callables."""
+    def __call__(self, config: frozenset[tuple[str, Any]]) -> Any:
+        """Create a metric instance from frozen config."""
+        ...
+
+
+class LabelFunction(Protocol):
+    """Protocol for label generation functions."""
+    def __call__(
+        self,
+        result: Any,
+        error: Optional[Exception],
+        func_args: Optional[tuple[Any, ...]] = None,
+        func_kwargs: Optional[dict[str, Any]] = None,
+    ) -> Labels:
+        """Generate labels from function execution context."""
+        ...
+
+
+class AmountFunction(Protocol):
+    """Protocol for amount calculation functions."""
+    def __call__(
+        self,
+        result: Any,
+        error: Optional[Exception],
+        func_args: Optional[tuple[Any, ...]] = None,
+        func_kwargs: Optional[dict[str, Any]] = None,
+    ) -> Union[int, float]:
+        """Calculate counter increment amount from execution context."""
+        ...
+
+
+def _normalize_metric_config(config: MetricConfig) -> dict[str, Any]:
     """Convert a metric config to a normalized dictionary.
 
     Args:
@@ -23,32 +65,32 @@ def _normalize_metric_config(config):
 
 
 def traced(
-    timer=None,
-    timer_factory=None,
-    counter=None,
-    counter_factory=None,
-    label_fn=None,
-    amount_fn=None,
-    tracer=None,
-    debug=False,
-    func_name_as_label=True,
-):
-    def decorator(func):
+    timer: Optional[MetricConfig] = None,
+    timer_factory: Optional[MetricFactory] = None,
+    counter: Optional[MetricConfig] = None,
+    counter_factory: Optional[MetricFactory] = None,
+    label_fn: Optional[LabelFunction] = None,
+    amount_fn: Optional[AmountFunction] = None,
+    tracer: Optional[str] = None,
+    debug: bool = False,
+    func_name_as_label: bool = True,
+) -> Callable[[Callable[P, R] | Callable[P, Awaitable[R]]], Callable[P, R] | Callable[P, Awaitable[R]]]:
+    def decorator(func: Callable[P, R] | Callable[P, Awaitable[R]]) -> Callable[P, R] | Callable[P, Awaitable[R]]:
         def record_data(
-            func_name,
-            timer,
-            counter,
-            counter_factory,
-            label_fn,
-            amount_fn,
-            start_time,
-            result,
-            error,
-            debug,
-            func_name_as_label,
-            func_args,
-            func_kwargs,
-        ):
+            func_name: str,
+            timer: Optional[MetricConfig],
+            counter: Optional[MetricConfig],
+            counter_factory: Optional[MetricFactory],
+            label_fn: Optional[LabelFunction],
+            amount_fn: Optional[AmountFunction],
+            start_time: float,
+            result: Any,
+            error: Optional[Exception],
+            debug: bool,
+            func_name_as_label: bool,
+            func_args: tuple[Any, ...],
+            func_kwargs: dict[str, Any],
+        ) -> None:
             labels = (
                 label_fn(
                     result,
@@ -115,16 +157,16 @@ def traced(
                 actual_counter.add(amount, attributes=labels)
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             if debug:
                 logger.debug(f"called sync wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
             with trace.get_tracer(tracer).start_as_current_span(func.__name__) as span:
-                result = None
-                error = None
+                result: Any = None
+                error: Optional[Exception] = None
                 try:
                     result = func(*args, **kwargs)
-                    return result
+                    return result  # type: ignore[no-any-return]
                 except Exception as ex:
                     error = ex
                     span.set_status(Status(StatusCode.ERROR))
@@ -152,16 +194,16 @@ def traced(
                             logger.debug(f"exception recording data: {ex}")
 
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             if debug:
                 logger.debug(f"called async wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
             with trace.get_tracer(tracer).start_as_current_span(func.__name__) as span:
-                result = None
-                error = None
+                result: Any = None
+                error: Optional[Exception] = None
                 try:
-                    result = await func(*args, **kwargs)
-                    return result
+                    result = await func(*args, **kwargs)  # type: ignore[misc]
+                    return result  # type: ignore[no-any-return]
 
                 except Exception as ex:
                     error = ex
