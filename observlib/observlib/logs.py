@@ -27,3 +27,15 @@ def configure_logging(
         handler = LoggingHandler(level=log_level, logger_provider=provider)
         logger.addHandler(handler)
         logger.setLevel(log_level)
+
+    # Add stdout handler if in dev or debug mode
+    attrs = resource.attributes
+    if attrs.get("env") == "dev" or attrs.get("debug") is True:
+        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+            stdout_handler = logging.StreamHandler()
+            stdout_handler.setLevel(log_level)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            stdout_handler.setFormatter(formatter)
+            logger.addHandler(stdout_handler)
