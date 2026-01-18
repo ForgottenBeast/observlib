@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "beartype>=0.19.0",
     "opentelemetry-api>=1.33.1",
     "opentelemetry-exporter-otlp>=1.33.1",
     "opentelemetry-exporter-prometheus>=0.54b1",
@@ -40,5 +41,11 @@ module = [
     "pyroscope.*",
     "pyroscope_otel.*",
     "opentelemetry.*",
+    "beartype.*",
 ]
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.150.2",
+]
