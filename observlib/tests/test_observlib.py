@@ -12,12 +12,71 @@ import logging
 import pytest
 from unittest.mock import patch, MagicMock
 from beartype.roar import BeartypeCallHintParamViolation
+from hypothesis import given, strategies as st, assume, settings, HealthCheck
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import Resource
 
 from observlib import configure_telemetry, traced
+
+
+# ============================================================================
+# Hypothesis strategies for property-based testing
+# ============================================================================
+
+# Valid service names: non-empty strings without control characters
+valid_service_names = st.text(min_size=1, max_size=100).filter(
+    lambda s: s.strip() and not any(ord(c) < 32 for c in s)
+)
+
+# Valid server addresses: host:port format
+valid_servers = st.builds(
+    lambda host, port: f"{host}:{port}",
+    host=st.text(min_size=1, max_size=50, alphabet=st.characters(
+        whitelist_categories=('Lu', 'Ll', 'Nd'),
+        whitelist_characters='-.'
+    )),
+    port=st.integers(min_value=1, max_value=65535)
+)
+
+# Valid log levels (Python logging constants)
+valid_log_levels = st.sampled_from([
+    logging.NOTSET, logging.DEBUG, logging.INFO,
+    logging.WARNING, logging.ERROR, logging.CRITICAL
+])
+
+# Valid resource attributes
+valid_resource_attrs = st.dictionaries(
+    keys=st.text(min_size=1, max_size=50),
+    values=st.one_of(
+        st.text(max_size=100),
+        st.integers(),
+        st.floats(allow_nan=False, allow_infinity=False),
+        st.booleans()
+    ),
+    max_size=10
+)
+
+# Invalid types for type violation testing
+invalid_types = st.one_of(
+    st.none(),
+    st.integers(),
+    st.floats(),
+    st.lists(st.integers()),
+    st.dictionaries(st.text(), st.integers()),
+    st.booleans()
+)
+
+# Valid metric configs
+valid_metric_configs = st.one_of(
+    st.text(min_size=1, max_size=50),  # string name
+    st.dictionaries(  # dict config
+        keys=st.sampled_from(["name", "unit", "description"]),
+        values=st.text(min_size=1, max_size=50),
+        min_size=1
+    )
+)
 
 
 # ============================================================================
@@ -973,3 +1032,249 @@ def test_beartype_runtime_validation_preserves_functionality():
     # Beartype validates the decorated function's parameters at runtime
     # But our decorator doesn't apply beartype to the wrapped function itself
     # so this tests that beartype on the decorator doesn't break the function
+
+
+# ============================================================================
+# Property-based tests using Hypothesis
+# ============================================================================
+
+@given(service_name=valid_service_names)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_configure_telemetry_accepts_valid_service_names(service_name):
+    """Property: configure_telemetry accepts any valid service name."""
+    # Should not raise any exception
+    configure_telemetry(service_name)
+
+    # Verify the provider is set
+    provider = metrics.get_meter_provider()
+    assert isinstance(provider, MeterProvider)
+
+
+@given(
+    service_name=valid_service_names,
+    log_level=valid_log_levels,
+    resource_attrs=valid_resource_attrs
+)
+@settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_configure_telemetry_with_valid_parameters(
+    service_name, log_level, resource_attrs
+):
+    """Property: configure_telemetry works with any valid parameter combination."""
+    configure_telemetry(
+        service_name=service_name,
+        log_level=log_level,
+        resource_attrs=resource_attrs
+    )
+
+    provider = metrics.get_meter_provider()
+    assert isinstance(provider, MeterProvider)
+
+
+@given(invalid_service_name=invalid_types)
+@settings(max_examples=30)
+def test_property_configure_telemetry_rejects_invalid_service_names(invalid_service_name):
+    """Property: configure_telemetry rejects non-string service names."""
+    assume(not isinstance(invalid_service_name, str))
+
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry(invalid_service_name)
+
+
+@given(
+    service_name=valid_service_names,
+    invalid_log_level=invalid_types
+)
+@settings(max_examples=30)
+def test_property_configure_telemetry_rejects_invalid_log_levels(
+    service_name, invalid_log_level
+):
+    """Property: configure_telemetry rejects non-integer log levels."""
+    assume(not isinstance(invalid_log_level, int))
+
+    with pytest.raises(BeartypeCallHintParamViolation):
+        configure_telemetry(service_name, log_level=invalid_log_level)
+
+
+@given(debug=st.booleans(), func_name_as_label=st.booleans())
+@settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_traced_decorator_with_boolean_flags(debug, func_name_as_label):
+    """Property: traced decorator accepts any boolean values for flags."""
+    configure_telemetry("test-service")
+
+    @traced(debug=debug, func_name_as_label=func_name_as_label)
+    def test_func(x):
+        return x * 2
+
+    result = test_func(5)
+    assert result == 10
+
+
+@given(metric_config=valid_metric_configs)
+@settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_traced_decorator_with_metric_configs(metric_config):
+    """Property: traced decorator accepts various metric config formats."""
+    configure_telemetry("test-service")
+    mock_factory = MagicMock()
+    mock_metric = MagicMock()
+    mock_factory.return_value = mock_metric
+
+    @traced(timer=metric_config, timer_factory=mock_factory)
+    def test_func():
+        return "result"
+
+    result = test_func()
+    assert result == "result"
+    assert mock_metric.record.called
+
+
+@given(
+    result_value=st.one_of(st.integers(), st.text(), st.booleans(), st.none()),
+    has_error=st.booleans()
+)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_label_fn_with_various_results(result_value, has_error):
+    """Property: label_fn receives various result and error combinations."""
+    configure_telemetry("test-service")
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    received_results = []
+    received_errors = []
+
+    def label_fn(result, error, func_args=None, func_kwargs=None):
+        received_results.append(result)
+        received_errors.append(error is not None)
+        return {"captured": "true"}
+
+    @traced(counter="calls", counter_factory=mock_factory, label_fn=label_fn)
+    def test_func():
+        if has_error:
+            raise ValueError("test error")
+        return result_value
+
+    if has_error:
+        with pytest.raises(ValueError):
+            test_func()
+    else:
+        result = test_func()
+        assert result == result_value
+
+    # Verify label_fn was called
+    assert len(received_results) == 1
+    assert received_errors[0] == has_error
+
+
+@given(
+    amount=st.integers(min_value=0, max_value=1000)
+)
+@settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_amount_fn_with_various_amounts(amount):
+    """Property: amount_fn can return various integer amounts."""
+    configure_telemetry("test-service")
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def amount_fn(result, error, func_args=None, func_kwargs=None):
+        return amount
+
+    @traced(counter="calls", counter_factory=mock_factory, amount_fn=amount_fn)
+    def test_func():
+        return "result"
+
+    test_func()
+
+    # Verify counter was incremented with the correct amount
+    args, _ = mock_counter.add.call_args
+    assert args[0] == amount
+
+
+@given(
+    func_args=st.lists(st.integers(), min_size=0, max_size=5),
+    func_kwargs=st.dictionaries(
+        keys=st.text(min_size=1, max_size=10),
+        values=st.integers(),
+        max_size=5
+    )
+)
+@settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_label_fn_receives_function_args(func_args, func_kwargs):
+    """Property: label_fn receives actual function arguments."""
+    configure_telemetry("test-service")
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    captured_args = []
+    captured_kwargs = []
+
+    def label_fn(result, error, func_args=None, func_kwargs=None):
+        captured_args.append(func_args)
+        captured_kwargs.append(func_kwargs)
+        return {"test": "label"}
+
+    @traced(counter="calls", counter_factory=mock_factory, label_fn=label_fn)
+    def test_func(*args, **kwargs):
+        return sum(args) + sum(kwargs.values())
+
+    test_func(*func_args, **func_kwargs)
+
+    # Verify function arguments were passed to label_fn
+    assert len(captured_args) == 1
+    assert captured_args[0] == tuple(func_args)
+    assert captured_kwargs[0] == func_kwargs
+
+
+@given(
+    iterations=st.integers(min_value=1, max_value=10)
+)
+@settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_traced_decorator_multiple_invocations(iterations):
+    """Property: traced decorator works correctly across multiple calls."""
+    configure_telemetry("test-service")
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    @traced(counter="calls", counter_factory=mock_factory)
+    def test_func(x):
+        return x * 2
+
+    results = []
+    for i in range(iterations):
+        results.append(test_func(i))
+
+    # Verify all calls succeeded
+    assert len(results) == iterations
+    assert results == [i * 2 for i in range(iterations)]
+
+    # Verify counter was called for each iteration
+    assert mock_counter.add.call_count == iterations
+
+
+@given(
+    text_result=st.text(max_size=100),
+    int_result=st.integers(),
+    float_result=st.floats(allow_nan=False, allow_infinity=False)
+)
+@settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_property_traced_preserves_return_values(text_result, int_result, float_result):
+    """Property: traced decorator preserves various return value types."""
+    configure_telemetry("test-service")
+
+    @traced()
+    def return_text():
+        return text_result
+
+    @traced()
+    def return_int():
+        return int_result
+
+    @traced()
+    def return_float():
+        return float_result
+
+    assert return_text() == text_result
+    assert return_int() == int_result
+    assert return_float() == float_result
