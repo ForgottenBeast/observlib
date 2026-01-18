@@ -15,12 +15,18 @@ def configure_telemetry(
     pyroscope_server=None,
     pyroscope_sample_rate=5,
     log_level=logging.INFO,
-    resource_attrs={},
+    resource_attrs=None,
 ):
+    if not service_name or not isinstance(service_name, str):
+        raise ValueError("service_name must be a non-empty string")
+
+    if resource_attrs is None:
+        resource_attrs = {}
+
     if pyroscope_server:
         pyroscope.configure(
             application_name=service_name,
-            server_address="http://{}".format(pyroscope_server),
+            server_address=f"http://{pyroscope_server}",
             sample_rate=pyroscope_sample_rate,
         )
 

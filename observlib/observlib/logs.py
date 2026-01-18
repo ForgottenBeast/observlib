@@ -5,7 +5,20 @@ from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry._logs import set_logger_provider, get_logger_provider
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
-LoggingInstrumentor().instrument(set_logging_format=True)
+logger = logging.getLogger(__name__)
+
+
+def _has_handler(handlers, handler_type):
+    """Check if a handler of the given type is already present.
+
+    Args:
+        handlers: List of handlers to check
+        handler_type: The handler class type to look for
+
+    Returns:
+        True if a handler of the specified type exists, False otherwise
+    """
+    return any(isinstance(h, handler_type) for h in handlers)
 
 
 def configure_logging(
@@ -13,29 +26,36 @@ def configure_logging(
     resource,
     log_level=logging.NOTSET,
 ):
-    otlp_log_exporter = OTLPLogExporter(endpoint="http://{}/v1/logs".format(server))
+    try:
+        # Instrument Python logging to capture logs with OpenTelemetry
+        LoggingInstrumentor().instrument(set_logging_format=True)
 
-    # Set up the logger provider with a batch log processor
-    logger_provider = LoggerProvider(resource=resource)
-    logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
-    set_logger_provider(logger_provider)
+        otlp_log_exporter = OTLPLogExporter(endpoint=f"http://{server}/v1/logs")
 
-    # Set up Python logging integration
-    provider = get_logger_provider()
-    logger = logging.getLogger()
-    if not any(isinstance(h, LoggingHandler) for h in logging.getLogger().handlers):
-        handler = LoggingHandler(level=log_level, logger_provider=provider)
-        logger.addHandler(handler)
-        logger.setLevel(log_level)
+        # Set up the logger provider with a batch log processor
+        logger_provider = LoggerProvider(resource=resource)
+        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+        set_logger_provider(logger_provider)
 
-    # Add stdout handler if in dev or debug mode
-    attrs = resource.attributes
-    if attrs.get("env") == "dev" or attrs.get("debug") is True:
-        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-            stdout_handler = logging.StreamHandler()
-            stdout_handler.setLevel(log_level)
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            stdout_handler.setFormatter(formatter)
-            logger.addHandler(stdout_handler)
+        # Set up Python logging integration
+        provider = get_logger_provider()
+        root_logger = logging.getLogger()
+        if not _has_handler(root_logger.handlers, LoggingHandler):
+            handler = LoggingHandler(level=log_level, logger_provider=provider)
+            root_logger.addHandler(handler)
+            root_logger.setLevel(log_level)
+
+        # Add stdout handler if in dev or debug mode
+        attrs = resource.attributes
+        if attrs.get("env") == "dev" or attrs.get("debug") is True:
+            if not _has_handler(root_logger.handlers, logging.StreamHandler):
+                stdout_handler = logging.StreamHandler()
+                stdout_handler.setLevel(log_level)
+                formatter = logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+                stdout_handler.setFormatter(formatter)
+                root_logger.addHandler(stdout_handler)
+    except Exception as e:
+        logger.error(f"Failed to configure logging: {e}")
+        raise

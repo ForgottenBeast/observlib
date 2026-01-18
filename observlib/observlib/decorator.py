@@ -3,6 +3,23 @@ from opentelemetry.sdk.trace import Status, StatusCode
 from opentelemetry import trace
 import time
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _normalize_metric_config(config):
+    """Convert a metric config to a normalized dictionary.
+
+    Args:
+        config: Either a string (metric name) or a dict of config options
+
+    Returns:
+        A dictionary with the normalized config
+    """
+    if isinstance(config, (str, bytes)):
+        return {"name": config}
+    return config
 
 
 def traced(
@@ -46,22 +63,19 @@ def traced(
             if func_name_as_label:
                 labels["function"] = func_name
             if debug:
-                print(f"labels: {labels}")
+                logger.debug(f"labels: {labels}")
 
             if timer and callable(timer_factory):
-                if isinstance(timer, (str, bytes)):
-                    config = {"name": timer}
-                else:
-                    config = timer
+                config = _normalize_metric_config(timer)
 
                 if debug:
-                    print(f"requesting histogram with {config}")
+                    logger.debug(f"requesting histogram with {config}")
 
                 try:
                     exec_time_histogram = timer_factory(frozenset(config.items()))
                 except Exception as ex:
                     if debug:
-                        print(f"error requesting histogram: {ex}")
+                        logger.debug(f"error requesting histogram: {ex}")
                     raise
 
                 exec_time_histogram.record(
@@ -83,22 +97,19 @@ def traced(
                 else 1
             )
             if debug:
-                print(f"amount: {amount}")
+                logger.debug(f"amount: {amount}")
 
             if counter and callable(counter_factory):
-                if isinstance(counter, (str, bytes)):
-                    config = {"name": counter}
-                else:
-                    config = counter
+                config = _normalize_metric_config(counter)
 
                 if debug:
-                    print(f"requesting counter with config: {config}")
+                    logger.debug(f"requesting counter with config: {config}")
 
                 try:
                     actual_counter = counter_factory(frozenset(config.items()))
                 except Exception as ex:
                     if debug:
-                        print(f"error requesting counter: {ex}")
+                        logger.debug(f"error requesting counter: {ex}")
                     raise
 
                 actual_counter.add(amount, attributes=labels)
@@ -106,7 +117,7 @@ def traced(
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             if debug:
-                print(f"called sync wrapper with:\nargs:{args}\nkwargs:{kwargs}")
+                logger.debug(f"called sync wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
             with trace.get_tracer(tracer).start_as_current_span(func.__name__) as span:
                 result = None
@@ -138,12 +149,12 @@ def traced(
                         )
                     except Exception as ex:
                         if debug:
-                            print(f"exception recording data: {ex}")
+                            logger.debug(f"exception recording data: {ex}")
 
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             if debug:
-                print(f"called async wrapper with:\nargs:{args}\nkwargs:{kwargs}")
+                logger.debug(f"called async wrapper with:\nargs:{args}\nkwargs:{kwargs}")
             start = time.perf_counter()
             with trace.get_tracer(tracer).start_as_current_span(func.__name__) as span:
                 result = None
@@ -176,7 +187,7 @@ def traced(
                         )
                     except Exception as ex:
                         if debug:
-                            print(f"exception recording data: {ex}")
+                            logger.debug(f"exception recording data: {ex}")
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
