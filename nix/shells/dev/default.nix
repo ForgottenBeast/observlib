@@ -16,6 +16,8 @@
 mkShell {
   packages = with pkgs; [
     python3Packages.bandit
+    python3Packages.pytest
+    python3Packages.pytest-asyncio
     deadnix
     python313
     (python313Packages.opentelemetry-instrumentation.overrideAttrs (old: {
