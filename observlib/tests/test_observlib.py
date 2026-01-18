@@ -551,3 +551,328 @@ def test_traced_decorator_with_none_return():
     result = returns_none()
     assert result is None
     assert mock_counter.add.called
+
+
+# ============================================================================
+# Tests for parameter combinations
+# ============================================================================
+
+def test_traced_decorator_with_custom_tracer():
+    """Test @traced decorator with custom tracer instance."""
+    configure_telemetry("test-service")
+    custom_tracer = trace.get_tracer("custom-tracer", "1.0.0")
+
+    @traced(tracer="custom-tracer")
+    def func_with_custom_tracer():
+        return "result"
+
+    result = func_with_custom_tracer()
+    assert result == "result"
+
+
+def test_traced_decorator_with_timer_and_counter():
+    """Test @traced decorator with both timer and counter."""
+    timer_factory = MagicMock()
+    counter_factory = MagicMock()
+    mock_histogram = MagicMock()
+    mock_counter = MagicMock()
+    timer_factory.return_value = mock_histogram
+    counter_factory.return_value = mock_counter
+
+    @traced(
+        timer="execution_time",
+        timer_factory=timer_factory,
+        counter="calls",
+        counter_factory=counter_factory
+    )
+    def both_metrics_func():
+        return "result"
+
+    result = both_metrics_func()
+    assert result == "result"
+    assert mock_histogram.record.called, "histogram should be recorded"
+    assert mock_counter.add.called, "counter should be incremented"
+
+
+def test_traced_decorator_label_fn_with_func_args():
+    """Test @traced decorator label_fn accessing function arguments."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def label_fn(result, error, func_args=None, func_kwargs=None):
+        return {
+            "arg0": str(func_args[0]) if func_args else "",
+            "kwarg_key": func_kwargs.get("key", "") if func_kwargs else "",
+        }
+
+    @traced(counter="calls", counter_factory=mock_factory, label_fn=label_fn)
+    def labeled_with_args(x, key="default"):
+        return x * 2
+
+    result = labeled_with_args(5, key="test_key")
+    assert result == 10
+
+    # Verify label_fn was called with correct arguments
+    args, kwargs = mock_counter.add.call_args
+    assert "attributes" in kwargs
+    assert kwargs["attributes"]["arg0"] == "5"
+    assert kwargs["attributes"]["kwarg_key"] == "test_key"
+
+
+def test_traced_decorator_label_fn_with_result():
+    """Test @traced decorator label_fn accessing function result."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def label_fn(result, error, func_args=None, func_kwargs=None):
+        return {"result_value": str(result), "has_error": str(error is not None)}
+
+    @traced(counter="calls", counter_factory=mock_factory, label_fn=label_fn)
+    def labeled_with_result():
+        return 42
+
+    result = labeled_with_result()
+    assert result == 42
+
+    args, kwargs = mock_counter.add.call_args
+    assert "attributes" in kwargs
+    assert kwargs["attributes"]["result_value"] == "42"
+    assert kwargs["attributes"]["has_error"] == "False"
+
+
+def test_traced_decorator_label_fn_with_error():
+    """Test @traced decorator label_fn accessing error in exception case."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def label_fn(result, error, func_args=None, func_kwargs=None):
+        return {
+            "has_error": str(error is not None),
+            "error_type": type(error).__name__ if error else ""
+        }
+
+    @traced(counter="calls", counter_factory=mock_factory, label_fn=label_fn)
+    def labeled_with_error():
+        raise ValueError("test error")
+
+    with pytest.raises(ValueError, match="test error"):
+        labeled_with_error()
+
+    # Counter should still be called with error labels
+    args, kwargs = mock_counter.add.call_args
+    assert "attributes" in kwargs
+    assert kwargs["attributes"]["has_error"] == "True"
+    assert kwargs["attributes"]["error_type"] == "ValueError"
+
+
+def test_traced_decorator_amount_fn_with_result():
+    """Test @traced decorator amount_fn using function result."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def amount_fn(result, error, func_args=None, func_kwargs=None):
+        # Increment counter by the result value
+        return result if result else 0
+
+    @traced(counter="calls", counter_factory=mock_factory, amount_fn=amount_fn)
+    def amount_from_result(value):
+        return value
+
+    result = amount_from_result(100)
+    assert result == 100
+
+    args, kwargs = mock_counter.add.call_args
+    assert args[0] == 100, "counter should be incremented by result value"
+
+
+def test_traced_decorator_amount_fn_with_func_args():
+    """Test @traced decorator amount_fn accessing function arguments."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def amount_fn(result, error, func_args=None, func_kwargs=None):
+        # Use first argument as the amount
+        return func_args[0] if func_args else 1
+
+    @traced(counter="calls", counter_factory=mock_factory, amount_fn=amount_fn)
+    def amount_from_args(multiplier):
+        return multiplier * 2
+
+    result = amount_from_args(50)
+    assert result == 100
+
+    args, kwargs = mock_counter.add.call_args
+    assert args[0] == 50, "counter should be incremented by first argument"
+
+
+def test_traced_decorator_amount_fn_with_error():
+    """Test @traced decorator amount_fn when function raises exception."""
+    mock_factory = MagicMock()
+    mock_counter = MagicMock()
+    mock_factory.return_value = mock_counter
+
+    def amount_fn(result, error, func_args=None, func_kwargs=None):
+        # Return 0 if there was an error, otherwise use result
+        return 0 if error else result
+
+    @traced(counter="calls", counter_factory=mock_factory, amount_fn=amount_fn)
+    def amount_with_error():
+        raise RuntimeError("error")
+
+    with pytest.raises(RuntimeError, match="error"):
+        amount_with_error()
+
+    # Counter should be called with amount=0 due to error
+    args, kwargs = mock_counter.add.call_args
+    assert args[0] == 0, "counter should be incremented by 0 on error"
+
+
+def test_traced_decorator_complex_combination():
+    """Test @traced decorator with multiple parameters combined."""
+    timer_factory = MagicMock()
+    counter_factory = MagicMock()
+    mock_histogram = MagicMock()
+    mock_counter = MagicMock()
+    timer_factory.return_value = mock_histogram
+    counter_factory.return_value = mock_counter
+
+    def custom_label_fn(result, error, func_args=None, func_kwargs=None):
+        return {
+            "input": str(func_args[0]) if func_args else "",
+            "output": str(result),
+        }
+
+    def custom_amount_fn(result, error, func_args=None, func_kwargs=None):
+        return result if result else 1
+
+    @traced(
+        timer={"name": "process_time", "unit": "s"},
+        timer_factory=timer_factory,
+        counter={"name": "processed_items", "unit": "1"},
+        counter_factory=counter_factory,
+        label_fn=custom_label_fn,
+        amount_fn=custom_amount_fn,
+        func_name_as_label=True,
+        debug=False
+    )
+    def complex_func(items):
+        return items * 2
+
+    result = complex_func(10)
+    assert result == 20
+
+    # Verify histogram was recorded with correct labels
+    assert mock_histogram.record.called
+    _, hist_kwargs = mock_histogram.record.call_args
+    assert "attributes" in hist_kwargs
+    assert hist_kwargs["attributes"]["function"] == "complex_func"
+    assert hist_kwargs["attributes"]["input"] == "10"
+    assert hist_kwargs["attributes"]["output"] == "20"
+
+    # Verify counter was incremented with correct amount and labels
+    assert mock_counter.add.called
+    counter_args, counter_kwargs = mock_counter.add.call_args
+    assert counter_args[0] == 20, "counter should be incremented by result (20)"
+    assert "attributes" in counter_kwargs
+    assert counter_kwargs["attributes"]["input"] == "10"
+    assert counter_kwargs["attributes"]["output"] == "20"
+
+
+@pytest.mark.asyncio
+async def test_traced_decorator_async_with_all_parameters():
+    """Test @traced decorator on async function with all parameters."""
+    timer_factory = MagicMock()
+    counter_factory = MagicMock()
+    mock_histogram = MagicMock()
+    mock_counter = MagicMock()
+    timer_factory.return_value = mock_histogram
+    counter_factory.return_value = mock_counter
+
+    def label_fn(result, error, func_args=None, func_kwargs=None):
+        return {"async": "true", "result": str(result)}
+
+    @traced(
+        timer="async_time",
+        timer_factory=timer_factory,
+        counter="async_calls",
+        counter_factory=counter_factory,
+        label_fn=label_fn,
+        func_name_as_label=True
+    )
+    async def async_all_params(value):
+        await asyncio.sleep(0.001)
+        return value * 3
+
+    result = await async_all_params(7)
+    assert result == 21
+    assert mock_histogram.record.called
+    assert mock_counter.add.called
+
+    # Verify labels
+    _, hist_kwargs = mock_histogram.record.call_args
+    assert hist_kwargs["attributes"]["async"] == "true"
+    assert hist_kwargs["attributes"]["result"] == "21"
+
+
+def test_traced_decorator_timer_only_without_counter():
+    """Test @traced decorator with only timer, no counter."""
+    timer_factory = MagicMock()
+    mock_histogram = MagicMock()
+    timer_factory.return_value = mock_histogram
+
+    @traced(timer="execution_time", timer_factory=timer_factory)
+    def timer_only_func():
+        return "result"
+
+    result = timer_only_func()
+    assert result == "result"
+    assert mock_histogram.record.called
+    # Verify execution time is positive
+    args, _ = mock_histogram.record.call_args
+    assert args[0] >= 0
+
+
+def test_traced_decorator_counter_only_without_timer():
+    """Test @traced decorator with only counter, no timer."""
+    counter_factory = MagicMock()
+    mock_counter = MagicMock()
+    counter_factory.return_value = mock_counter
+
+    @traced(counter="calls", counter_factory=counter_factory)
+    def counter_only_func():
+        return "result"
+
+    result = counter_only_func()
+    assert result == "result"
+    assert mock_counter.add.called
+    # Verify default amount is 1
+    args, _ = mock_counter.add.call_args
+    assert args[0] == 1
+
+
+def test_traced_decorator_func_name_as_label_with_timer():
+    """Test func_name_as_label parameter specifically with timer."""
+    timer_factory = MagicMock()
+    mock_histogram = MagicMock()
+    timer_factory.return_value = mock_histogram
+
+    @traced(
+        timer="execution_time",
+        timer_factory=timer_factory,
+        func_name_as_label=False
+    )
+    def no_func_label():
+        return "result"
+
+    no_func_label()
+
+    # Timer should still get the function name in attributes (always added for histogram)
+    _, kwargs = mock_histogram.record.call_args
+    assert "attributes" in kwargs
+    # The histogram ALWAYS gets function name according to decorator.py:84-86
+    assert kwargs["attributes"]["function"] == "no_func_label"
